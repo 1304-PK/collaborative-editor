@@ -4,22 +4,36 @@ import { createBrowserRouter } from "react-router-dom";
 import LandingPage from "./pages/LandingPage"
 import Login from "./pages/Login"
 import SignUp from "./pages/SignUp";
+import Dashboard from "./pages/Dashboard";
 
 // Import components
-
+import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./components/PublicRoute";
 
 const router = createBrowserRouter([
     {
         path: "/",
-        element: <LandingPage />
+        element: <ProtectedRoute>
+            <LandingPage />
+        </ProtectedRoute>
     },
     {
         path: "/auth/login",
-        element: <Login />
+        element: <PublicRoute>
+            <Login />
+        </PublicRoute>
     },
     {
         path: "/auth/signup",
-        element: <SignUp />
+        element: <PublicRoute>
+            <SignUp />
+        </PublicRoute>
+    },
+    {
+        path: "/dashboard",
+        element: <ProtectedRoute>
+            <Dashboard />
+        </ProtectedRoute>
     }
 ])
 
