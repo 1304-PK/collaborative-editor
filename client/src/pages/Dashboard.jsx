@@ -10,10 +10,12 @@ export default function Dashboard() {
     const [isOpen, setIsOpen] = useState(false);
     const [boardName, setBoardName] = useState('');
 
-    const {user} = useAuth()
+    const { user } = useAuth()
 
-    // List to store list of whiteboards
+    // List to store list of owned whiteboards
     const [boards, setBoards] = useState([]);
+    // List to store list of shared whiteboards
+    const [sharedBoards, setSharedBoards] = useState([]);
 
     const handleCreateBoard = async (e) => {
         e.preventDefault();
@@ -50,29 +52,62 @@ export default function Dashboard() {
         navigate(`/board/${id}`)
     }
 
+    const handleLogout = async () => {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+        } catch (err) {
+            console.error('Error logging out:', err.message);
+        }
+    };
+
     useEffect(() => {
         const getDashboardInfo = async () => {
-            try{
-                const {data, error} = await supabase
-                .from("whiteboards")
-                .select("*")
-                .eq("owner_id", user.id)
-                .order("created_at", {ascending: false})
+            try {
+                // Fetch both owned boards and shared boards in parallel
+                const [ownedRes, sharedRes] = await Promise.all([
+                    supabase
+                        .from("whiteboards")
+                        .select("*")
+                        .eq("owner_id", user.id)
+                        .order("created_at", { ascending: false }),
+                    supabase
+                        .from("collaborators")
+                        .select(`
+                            role,
+                            whiteboards (
+                                id,
+                                title,
+                                created_at
+                            )
+                        `)
+                        .eq("user_id", user.id)
+                ]);
 
-                if (error){
-                    throw new Error(error.message)
-                }
+                if (ownedRes.error) throw new Error(ownedRes.error.message);
+                if (sharedRes.error) throw new Error(sharedRes.error.message);
 
-                console.log(data)
-                setBoards(data)
+                setBoards(ownedRes.data);
+
+                // Format the nested inner join payload cleanly for structural parsing
+                const formattedShared = (sharedRes.data || [])
+                    .filter(item => item.whiteboards !== null)
+                    .map(item => ({
+                        id: item.whiteboards.id,
+                        title: item.whiteboards.title,
+                        created_at: item.whiteboards.created_at,
+                        role: item.role
+                    }));
+                
+                setSharedBoards(formattedShared);
             }
-            catch(err){
+            catch (err) {
                 console.error(err)
             }
         }
 
-        getDashboardInfo()
-    }, [])
+        if (user?.id) getDashboardInfo();
+    }, [user?.id])
 
     return (
         <div className="min-h-screen w-full bg-[#f5f2eb] flex flex-col font-sans relative overflow-hidden"
@@ -93,6 +128,8 @@ export default function Dashboard() {
                     </h1>
                 </div>
 
+                <button onClick={handleLogout}>Log Out</button>
+
                 {/* User Profile Placeholder */}
                 <div className="w-8 h-8 rounded-full bg-neutral-200 border border-[#e4dec3] flex items-center justify-center text-xs font-medium text-neutral-600">
                     U
@@ -100,10 +137,10 @@ export default function Dashboard() {
             </header>
 
             {/* Main Content Area */}
-            <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-12 flex flex-col justify-between">
+            <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-12 flex flex-col">
 
                 {/* Welcome Section */}
-                <div className="flex items-start justify-between w-full max-w-7xl">
+                <div className="flex items-start justify-between w-full max-w-7xl mb-12">
                     <div className="space-y-2 max-w-md">
                         <h2 className="text-3xl font-light tracking-tight text-neutral-900">
                             Your creative canvas.
@@ -125,65 +162,102 @@ export default function Dashboard() {
                     </button>
                 </div>
 
-                {/* Section showing ongoing whiteboards */}
-                <div className="my-auto w-full py-8">
-                    {boards.length === 0 ? (
-                        /* Placeholder for no whiteboards */
-                        <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[#d1ccc0]/60 rounded-2xl max-w-2xl w-full mx-auto bg-[#f5f2eb]/40 backdrop-blur-[2px]">
-                            <div className="p-4 bg-white/80 rounded-full border border-[#e4dec3] shadow-sm mb-4">
-                                <svg
-                                    className="w-6 h-6 text-neutral-400"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16m8-8H4" />
-                                </svg>
-                            </div>
-                            <p className="text-sm text-neutral-600 font-medium mb-1">No active boards</p>
-                            <p className="text-xs text-neutral-400 mb-6">Get started by building your first collaborative space.</p>
-
-                            {/* Triggers popup visibility */}
-                            <button
-                                onClick={() => setIsOpen(true)}
-                                className="inline-flex items-center space-x-2 bg-neutral-900 hover:bg-neutral-800 text-[#f5f2eb] px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                                </svg>
-                                <span>Create new project</span>
-                            </button>
-                        </div>
-                    ) : (
-                        /* Active list landscape cards grid layout */
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl w-full mx-auto">
-                            {boards.map((board) => (
-                                <div
-                                    key={board.id}
-                                    className="bg-white/80 backdrop-blur-[2px] border border-[#e4dec3] rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow duration-200"
-
-                                    onClick={() => openWhiteboard(board.id)}
-                                >
-                                    <div className="space-y-1 pr-4 min-w-0">
-                                        <p className="text-sm font-medium text-neutral-900 truncate">
-                                            {board.title}
-                                        </p>
-                                        <p className="text-xs text-neutral-400">
-                                            Created {new Date(board.created_at || Date.now()).toLocaleDateString()}
-                                        </p>
-                                    </div>
-
-                                    <button className="bg-neutral-900 hover:bg-neutral-800 text-[#f5f2eb] text-xs font-medium px-3 py-1.5 rounded-md transition-colors duration-200 shrink-0">
-                                        Open
-                                    </button>
+                {/* Landscape Workspace Sections */}
+                <div className="w-full space-y-12 flex-1 flex flex-col justify-center">
+                    
+                    {/* SECTION 1: MY BOARDS */}
+                    <div className="w-full space-y-4">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-400">My Boards</h3>
+                        {boards.length === 0 ? (
+                            /* Placeholder for no whiteboards */
+                            <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-[#d1ccc0]/60 rounded-2xl max-w-2xl w-full mx-auto bg-[#f5f2eb]/40 backdrop-blur-[2px]">
+                                <div className="p-3 bg-white/80 rounded-full border border-[#e4dec3] shadow-sm mb-3">
+                                    <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16m8-8H4" />
+                                    </svg>
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                                <p className="text-sm text-neutral-600 font-medium mb-1">No active boards</p>
+                                <p className="text-xs text-neutral-400 mb-4">Get started by building your first collaborative space.</p>
+                                <button
+                                    onClick={() => setIsOpen(true)}
+                                    className="inline-flex items-center space-x-2 bg-neutral-900 hover:bg-neutral-800 text-[#f5f2eb] px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm active:scale-[0.98]"
+                                >
+                                    <span>Create new project</span>
+                                </button>
+                            </div>
+                        ) : (
+                            /* Active list landscape cards grid layout */
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                                {boards.map((board) => (
+                                    <div
+                                        key={board.id}
+                                        className="bg-white/80 backdrop-blur-[2px] border border-[#e4dec3] rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                                        onClick={() => openWhiteboard(board.id)}
+                                    >
+                                        <div className="space-y-1 pr-4 min-w-0">
+                                            <p className="text-sm font-medium text-neutral-900 truncate+">
+                                                {board.title}
+                                            </p>
+                                            <p className="text-xs text-neutral-400">
+                                                Created {new Date(board.created_at || Date.now()).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <button className="bg-neutral-900 hover:bg-neutral-800 text-[#f5f2eb] text-xs font-medium px-3 py-1.5 rounded-md transition-colors duration-200 shrink-0">
+                                            Open
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* SECTION 2: SHARED WITH ME */}
+                    <div className="w-full space-y-4">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-400">Shared with me</h3>
+                        {sharedBoards.length === 0 ? (
+                            <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-[#d1ccc0]/40 rounded-2xl max-w-2xl w-full mx-auto bg-[#f5f2eb]/20 text-center">
+                                <p className="text-sm text-neutral-500 font-medium">No external shared spaces</p>
+                                <p className="text-xs text-neutral-400 mt-1">When others invite you to their workspace rooms, they'll show up here.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                                {sharedBoards.map((board) => (
+                                    <div
+                                        key={board.id}
+                                        className="bg-white/80 backdrop-blur-[2px] border border-[#e4dec3] rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                                        onClick={() => openWhiteboard(board.id)}
+                                    >
+                                        <div className="space-y-2 pr-4 min-w-0">
+                                            <div className="space-y-0.5">
+                                                <p className="text-sm font-medium text-neutral-900 truncate">
+                                                    {board.title}
+                                                </p>
+                                                <p className="text-xs text-neutral-400">
+                                                    Created {new Date(board.created_at || Date.now()).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            {/* Role badge marker */}
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium tracking-wide uppercase border ${
+                                                board.role === 'editor' 
+                                                    ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                                                    : 'bg-neutral-100 text-neutral-600 border-neutral-200'
+                                            }`}>
+                                                {board.role}
+                                            </span>
+                                        </div>
+                                        <button className="bg-neutral-900 hover:bg-neutral-800 text-[#f5f2eb] text-xs font-medium px-3 py-1.5 rounded-md transition-colors duration-200 shrink-0">
+                                            Open
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                 </div>
 
                 {/* Subtle Footer info */}
-                <footer className="text-center text-xs text-neutral-400 pt-6">
+                <footer className="text-center text-xs text-neutral-400 pt-12 mt-auto">
                     System connected to Supabase Auth backend.
                 </footer>
             </main>
