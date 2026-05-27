@@ -4,11 +4,12 @@ import { createBrowserRouter } from "react-router-dom";
 import LandingPage from "./pages/LandingPage"
 import Login from "./pages/Login"
 import SignUp from "./pages/SignUp";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/Dashboard"
+import Whiteboard from "./pages/Whiteboard"
 
 // Import components
-import ProtectedRoute from "./components/ProtectedRoute";
-import PublicRoute from "./components/PublicRoute";
+import ProtectedRoute from "./components/ProtectedRoute"
+import PublicRoute from "./components/PublicRoute"
 
 const router = createBrowserRouter([
     {
@@ -33,6 +34,12 @@ const router = createBrowserRouter([
         path: "/dashboard",
         element: <ProtectedRoute>
             <Dashboard />
+        </ProtectedRoute>
+    },
+    {
+        path: "/board/:id",
+        element: <ProtectedRoute>
+            <Whiteboard />
         </ProtectedRoute>
     }
 ])
