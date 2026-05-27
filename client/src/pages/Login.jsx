@@ -2,22 +2,36 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import AuthForm from '../components/AuthForm';
+import { supabase } from '../lib/supabaseClient';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (data) => {
-    setLoading(true);
-    console.log('Logging in with:', data);
-    // TODO: Connect to your Supabase client here:
-    // const { error } = await supabase.auth.signInWithPassword(data);
-    setLoading(false);
+  const handleLogin = async (formData) => {
+    setLoading(true)
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+    }
+    catch (err) {
+      console.error(err)
+    }
+    finally {
+      setLoading(false)
+    }
   };
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
-        
+
         {/* Header */}
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight text-white">
@@ -36,7 +50,7 @@ export default function Login() {
         {/* Footer Link */}
         <p className="text-center text-sm text-neutral-500">
           Don't have an account?{' '}
-          <NavLink to="/signup" className="text-neutral-300 hover:text-white underline underline-offset-4 transition-colors">
+          <NavLink to="/auth/signup" className="text-neutral-300 hover:text-white underline underline-offset-4 transition-colors">
             Sign up
           </NavLink>
         </p>
