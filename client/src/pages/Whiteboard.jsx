@@ -20,6 +20,7 @@ export default function WhiteboardRoom() {
     const [boardTitle, setBoardTitle] = useState('Loading board...');
     const [collabInfo, setCollabInfo] = useState({ role: "editor" })
     const [editor, setEditor] = useState(null)
+    const [saveStatus, setSaveStatus] = useState("Saved")
 
     // const socketRef = useSocket()
     useWhiteboardSync(editor, connectSocket, boardId)
@@ -142,6 +143,11 @@ export default function WhiteboardRoom() {
                     <h1 className="text-sm font-medium text-neutral-900 truncate max-w-[240px]">
                         {boardTitle}
                     </h1>
+                </div>
+
+                {/* Notify user about saving the whiteboard */}
+                <div>
+                    {saveStatus}
                 </div>
 
                 <div className="flex items-center space-x-4">
