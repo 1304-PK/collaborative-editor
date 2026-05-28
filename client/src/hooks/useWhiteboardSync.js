@@ -1,8 +1,26 @@
 import { useEffect } from "react";
-// import { useSocket } from "../context/socketContext";
 import { connectSocket, disconnectSocket } from "../lib/socket";
+import saveBoard from "../utils/saveBoard";
+import { supabase } from "../lib/supabaseClient";
 
 const useWhiteboardSync = (editor, socketRef, boardId) => {
+
+    useEffect(() => {
+
+        if (!editor) return
+        const loadBoardData = async () => {
+            const { data, error } = await supabase
+                .from("whiteboards")
+                .select("canvas_data")
+                .eq("id", boardId)
+                .single()
+
+            const snapshot = JSON.parse(data.canvas_data)
+            editor.loadSnapshot(snapshot)
+        }
+
+        loadBoardData()
+    }, [editor])
 
     useEffect(() => {
 
@@ -14,28 +32,32 @@ const useWhiteboardSync = (editor, socketRef, boardId) => {
         console.log("hook connected to editor....")
 
         const cleanup = editor.store.listen((update) => {
-            const {added, updated, removed} = update.changes
-            
+
+            // Code to print board 1 second after user is still
+            saveBoard(editor, boardId)
+
+            const { added, updated, removed } = update.changes
+
             const changes = {
-                added:   Object.values(added).filter(r => r.typeName === "shape"),
+                added: Object.values(added).filter(r => r.typeName === "shape"),
                 updated: Object.values(updated)
-                             .filter(([, next]) => next.typeName === "shape")
-                             .map(([prev, next]) => next),
+                    .filter(([, next]) => next.typeName === "shape")
+                    .map(([prev, next]) => next),
                 removed: Object.values(removed)
-                             .filter(r => r.typeName === "shape")
-                             .map(r => r.id),
+                    .filter(r => r.typeName === "shape")
+                    .map(r => r.id),
             };
 
-            const hasChanges = 
-            changes.added?.length>0 ||
-            changes.updated?.length > 0 ||
-            changes.removed?.length > 0
+            const hasChanges =
+                changes.added?.length > 0 ||
+                changes.updated?.length > 0 ||
+                changes.removed?.length > 0
 
-            if (hasChanges){
-                socket.emit("whiteboard-update", {changes, boardId})
+            if (hasChanges) {
+                socket.emit("whiteboard-update", { changes, boardId })
             }
 
-        }, {scope: "document"})
+        }, { scope: "document" })
 
         //sync whiteboard across the room
         const handleRemoteUpdate = (changes) => {
