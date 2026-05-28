@@ -2,6 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tldraw } from '@tldraw/tldraw';
 import { supabase } from '../lib/supabaseClient';
+// import {connectSocket, disconnectSocket} from "../lib/socket"
+import { useAuth } from '../context/AuthContext';
+// import { useSocket } from '../context/socketContext';
+import { connectSocket, disconnectSocket } from '../lib/socket';
+import useWhiteboardSync from "../hooks/useWhiteboardSync"
 
 // Importing css for render
 import '@tldraw/tldraw/tldraw.css';
@@ -14,6 +19,12 @@ export default function WhiteboardRoom() {
     const [loading, setLoading] = useState(true);
     const [boardTitle, setBoardTitle] = useState('Loading board...');
     const [collabInfo, setCollabInfo] = useState({ role: "editor" })
+    const [editor, setEditor] = useState(null)
+
+    // const socketRef = useSocket()
+    useWhiteboardSync(editor, connectSocket, boardId)
+
+    const {user} = useAuth()
 
     // State to manage the share popup modal visibility
     const [isShareOpen, setIsShareOpen] = useState(false);
@@ -48,28 +59,24 @@ export default function WhiteboardRoom() {
         if (boardId) fetchBoardData();
     }, [boardId, navigate]);
 
-    //   2. Handle saving updates to Supabase with basic debouncing
-    //   const handleEditorMount = (editor) => {
-    //     let saveTimeout;
+    useEffect(() => {
+        const socket = connectSocket()
+        const joinRoom = () => {
+        socket.emit("join-room", { boardId, userId: user.id });
+        console.log("joined room", boardId);
+    };
 
-    //     // Listen for any change occurring inside the TLDraw structural store
-    //     editor.store.listen(() => {
-    //       // Clear the previous timer on micro-movements (like dragging a mouse)
-    //       clearTimeout(saveTimeout);
-
-    //       // Debounce saving: Waits for 2 seconds of stillness before writing to Supabase
-    //       saveTimeout = setTimeout(async () => {
-    //         const currentSnapshot = editor.store.getSnapshot();
-
-    //         await supabase
-    //           .from('whiteboards')
-    //           .update({ canvas_data: currentSnapshot })
-    //           .eq('id', boardId);
-
-    //         console.log('Board state auto-saved to Supabase.');
-    //       }, 2000); 
-    //     });
-    //   };
+    // if already connected emit immediately, else wait for connection
+    if (socket.connected) {
+        joinRoom();
+    } else {
+        socket.once("connect", joinRoom);
+    }
+        return () => {
+            socket.off("user-connected")
+            disconnectSocket()
+        }
+    }, [boardId])
 
     const handleEditorMount = (editor) => {
 
@@ -97,7 +104,7 @@ export default function WhiteboardRoom() {
                         role: collabInfo.role
                     }
                 ])
-                
+
             if (cError) throw cError
         }
         catch (err) {
@@ -160,7 +167,7 @@ export default function WhiteboardRoom() {
             <div className="flex-1 w-full relative">
                 <Tldraw
                     initialSnapshot={initialSnapshot}
-                    onMount={handleEditorMount}
+                    onMount={(mountedEditor) => setEditor(mountedEditor)}
                 />
             </div>
 
