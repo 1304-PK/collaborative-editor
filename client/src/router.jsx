@@ -14,9 +14,9 @@ import PublicRoute from "./components/PublicRoute"
 const router = createBrowserRouter([
     {
         path: "/",
-        element: <ProtectedRoute>
+        element: <PublicRoute>
             <LandingPage />
-        </ProtectedRoute>
+        </PublicRoute>
     },
     {
         path: "/auth/login",
