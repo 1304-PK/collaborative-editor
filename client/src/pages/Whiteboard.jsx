@@ -91,7 +91,7 @@ export default function WhiteboardRoom() {
 
         return () => {
             socket.off("user-connected");
-            disconnectSocket();
+            disconnectSocket({boardId, userId: user.id});
         };
     }, [boardId]);
 
