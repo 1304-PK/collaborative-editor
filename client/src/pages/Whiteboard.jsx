@@ -14,6 +14,7 @@ import getName from '../utils/getName';
 import '@tldraw/tldraw/tldraw.css';
 
 export default function WhiteboardRoom() {
+
     const { id: boardId } = useParams();
     const toastRef = useRef(null);
     const navigate = useNavigate();
@@ -24,14 +25,39 @@ export default function WhiteboardRoom() {
     const [collabInfo, setCollabInfo] = useState({ role: "editor" })
     const [editor, setEditor] = useState(null)
     const [saveStatus, setSaveStatus] = useState(false)
+    const [userRole, setUserRole] = useState("")
 
     // Custom hook for whiteboard sync
-    useWhiteboardSync(editor, connectSocket, boardId, setSaveStatus)
+    useWhiteboardSync(editor, connectSocket, boardId, setSaveStatus, userRole)
 
     const {user} = useAuth()
     console.log(user)
     // State to manage the share popup modal visibility
     const [isShareOpen, setIsShareOpen] = useState(false);
+
+    // Fetch user role from db
+    useEffect(() => {
+        const getUserRole = async () => {
+            try{
+                const {data, error} = await supabase
+                .from("collaborators")
+                .select("role")
+                .eq('whiteboard_id', boardId)
+                .eq('user_id', user.id)
+                .single()
+
+                if (error) throw new Error(error)
+
+                setUserRole(data.role)
+                console.log(data.role)
+            }
+            catch(err){
+                console.error(err)
+            }
+        }
+
+        getUserRole()
+    }, [])
 
     //   Fetch initial board snapshot from Supabase
     useEffect(() => {
