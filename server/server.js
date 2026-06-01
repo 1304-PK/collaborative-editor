@@ -4,6 +4,9 @@ const http = require("http")
 const {Server} = require("socket.io")
 require("dotenv").config()
 
+const genRandomColor = require("./utils/genRandomColor")
+const getUserData = require("./utils/getUserData")
+
 // Initialize express
 const app = express()
 
@@ -18,19 +21,44 @@ const io = new Server(server, {
     }
 })
 
+const roomData = {
+
+}
+
 // Handle connection events
 io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`)
 
-    socket.on("join-room", ({boardId, userId}) => {
+    socket.on("join-room", ({boardId, userId, userEmail}) => {
         // space for authorization logic
+        
+        // Save user email and id in roomData
+        const userColor = genRandomColor()
+        if (!roomData[boardId]){
+            roomData[boardId] = [
+                {
+                    userId: userId,
+                    userEmail: userEmail,
+                    userColor: userColor
+                }
+            ]
+        } 
+        else{
+            roomData[boardId].push({
+                userId: userId,
+                userEmail: userEmail,
+                userColor: userColor
+            })
+        }
 
         socket.join(boardId)
-        socket.to(boardId).emit("user-connected", userId)
+        socket.to(boardId).emit("user-connected", {userId, userEmail, userColor})
     })
 
-    socket.on("whiteboard-update", ({changes, boardId}) => {
-        socket.to(boardId).emit("whiteboard-update", changes)
+    socket.on("whiteboard-update", ({changes, boardId, userId}) => {
+        const {userColor, userEmail} = getUserData(roomData, boardId, userId)
+        socket.to(boardId).emit("whiteboard-update", {changes, userColor, userEmail})
+        console.log(roomData)
     })
     socket.on("disconnect", () => {console.log(`User disconnected: ${socket.id}`)})
 })
