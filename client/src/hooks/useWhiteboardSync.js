@@ -3,7 +3,11 @@ import { connectSocket, disconnectSocket } from "../lib/socket";
 import saveBoard from "../utils/saveBoard";
 import { supabase } from "../lib/supabaseClient";
 
+import { useAuth } from "../context/AuthContext";
+
 const useWhiteboardSync = (editor, socketRef, boardId) => {
+
+    const {user} = useAuth()
 
     useEffect(() => {
 
@@ -54,13 +58,13 @@ const useWhiteboardSync = (editor, socketRef, boardId) => {
                 changes.removed?.length > 0
 
             if (hasChanges) {
-                socket.emit("whiteboard-update", { changes, boardId })
+                socket.emit("whiteboard-update", { changes, boardId, userId: user.id })
             }
 
         }, { scope: "document" })
 
         //sync whiteboard across the room
-        const handleRemoteUpdate = (changes) => {
+        const handleRemoteUpdate = ({changes, userColor, userEmail}) => {
             editor.store.mergeRemoteChanges(() => {
                 const { added, updated, removed } = changes;
 
