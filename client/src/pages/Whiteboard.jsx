@@ -1,18 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tldraw } from '@tldraw/tldraw';
 import { supabase } from '../lib/supabaseClient';
-// import {connectSocket, disconnectSocket} from "../lib/socket"
 import { useAuth } from '../context/AuthContext';
-// import { useSocket } from '../context/socketContext';
 import { connectSocket, disconnectSocket } from '../lib/socket';
-import useWhiteboardSync from "../hooks/useWhiteboardSync"
+import useWhiteboardSync from "../hooks/useWhiteboardSync";
+import { Toast } from 'primereact/toast';
+
+// Importing utils
+import getName from '../utils/getName';
 
 // Importing css for render
 import '@tldraw/tldraw/tldraw.css';
 
 export default function WhiteboardRoom() {
     const { id: boardId } = useParams();
+    const toastRef = useRef(null);
     const navigate = useNavigate();
 
     const [initialSnapshot, setInitialSnapshot] = useState(null);
@@ -26,7 +29,7 @@ export default function WhiteboardRoom() {
     useWhiteboardSync(editor, connectSocket, boardId)
 
     const {user} = useAuth()
-
+    console.log(user)
     // State to manage the share popup modal visibility
     const [isShareOpen, setIsShareOpen] = useState(false);
 
@@ -61,27 +64,36 @@ export default function WhiteboardRoom() {
     }, [boardId, navigate]);
 
     useEffect(() => {
-        const socket = connectSocket()
+        const socket = connectSocket();
+        
         const joinRoom = () => {
-        socket.emit("join-room", { boardId, userId: user.id });
-        console.log("joined room", boardId);
-    };
+            socket.emit("join-room", { boardId, userId: user.id , userEmail: user.email});
 
-    // if already connected emit immediately, else wait for connection
-    if (socket.connected) {
-        joinRoom();
-    } else {
-        socket.once("connect", joinRoom);
-    }
-        return () => {
-            socket.off("user-connected")
-            disconnectSocket()
+            console.log("hey bitch", user.email);
+        };
+
+        // if already connected emit immediately, else wait for connection
+        if (socket.connected) {
+            joinRoom();
+        } else {
+            socket.once("connect", joinRoom);
         }
-    }, [boardId])
 
-    const handleEditorMount = (editor) => {
+        socket.on("user-connected", ({ userId, userEmail }) => {
+            console.log(userEmail);
+            toastRef.current?.show({
+                severity: 'info',
+                summary: 'Collaborator Connected',
+                detail: `${getName(userEmail)} has joined the whiteboard session.`,
+                life: 3000
+            });
+        });
 
-    }
+        return () => {
+            socket.off("user-connected");
+            disconnectSocket();
+        };
+    }, [boardId]);
 
     const addCollaborators = async (e) => {
         e.preventDefault()
@@ -126,6 +138,7 @@ export default function WhiteboardRoom() {
 
     return (
         <div className="w-screen h-screen flex flex-col bg-[#f5f2eb] select-none">
+            <Toast ref={toastRef} />
 
             {/* Dynamic Top Bar utility section matching your clean design */}
             <header className="w-full bg-[#f5f2eb] border-b border-[#e4dec3]/60 px-4 py-3 flex items-center justify-between z-10 shrink-0">
