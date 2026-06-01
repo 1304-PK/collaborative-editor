@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
-import treeBackground from '../assets/tree_background.jpg';              
+import { LogOut, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import treeBackground from '../assets/tree_background.jpg';
+import { getOwnedBoards } from '../utils/getBoards';
 
 export default function Dashboard() {
 
@@ -19,6 +20,42 @@ export default function Dashboard() {
     // List to store list of shared whiteboards
     const [sharedBoards, setSharedBoards] = useState([]);
 
+    // Kebab menu + board action modal state
+    const [openMenuId, setOpenMenuId] = useState(null);
+    const [isRenameOpen, setIsRenameOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [selectedBoard, setSelectedBoard] = useState(null);
+    const [renameValue, setRenameValue] = useState('');
+    const renameDialogRef = useRef(null);
+    const deleteDialogRef = useRef(null);
+
+    // Open rename dialog
+    const openRename = (board) => {
+        setSelectedBoard(board);
+        setRenameValue(board.title);
+        setOpenMenuId(null);
+        setIsRenameOpen(true);
+    };
+
+    // Open delete dialog
+    const openDelete = (board) => {
+        setSelectedBoard(board);
+        setOpenMenuId(null);
+        setIsDeleteOpen(true);
+    };
+
+    // Sync <dialog> open/close with state
+    useEffect(() => {
+        if (isRenameOpen) renameDialogRef.current?.showModal();
+        else renameDialogRef.current?.close();
+    }, [isRenameOpen]);
+
+    useEffect(() => {
+        if (isDeleteOpen) deleteDialogRef.current?.showModal();
+        else deleteDialogRef.current?.close();
+    }, [isDeleteOpen]);
+
+    // Function to create whiteboard
     const handleCreateBoard = async (e) => {
         e.preventDefault();
 
@@ -50,10 +87,58 @@ export default function Dashboard() {
         setIsOpen(false);
     };
 
+    // Function to delete Whiteboard
+    const deleteBoard = async (e) => {
+        e.preventDefault()
+
+        try {
+            const { error } = await supabase
+                .from("whiteboards")
+                .delete()
+                .eq("id", selectedBoard.id)
+
+            if (error) throw new Error(error.message) 
+
+            const updatedData = await getOwnedBoards(user.id)
+            setBoards(updatedData)
+        }
+        catch (err) {
+            console.error(err)
+        }
+        finally {
+            setIsDeleteOpen(false)
+        }
+    }
+
+    // Function to rename whiteboard
+    const renameBoard = async(e) => {
+        e.preventDefault()
+
+        try{
+            const {data, error} = await supabase
+            .from("whiteboards")
+            .update({"title": renameValue})
+            .eq("id", selectedBoard.id)
+
+            if (error) throw new Error(error.message)
+
+            const updatedData = await getOwnedBoards(user.id)
+            setBoards(updatedData)
+        }
+        catch(err){
+            console.error(err)
+        }
+        finally{
+            setIsRenameOpen(false)
+        }
+    }
+
+    // Navigate to whiteboard
     const openWhiteboard = (id) => {
         navigate(`/board/${id}`)
     }
 
+    // Logout function
     const handleLogout = async () => {
         try {
             const { error } = await supabase.auth.signOut();
@@ -70,7 +155,7 @@ export default function Dashboard() {
                 const [ownedRes, sharedRes] = await Promise.all([
                     supabase
                         .from("whiteboards")
-                        .select("*")
+                        .select("id, title")
                         .eq("owner_id", user.id)
                         .order("created_at", { ascending: false }),
                     supabase
@@ -100,7 +185,7 @@ export default function Dashboard() {
                         created_at: item.whiteboards.created_at,
                         role: item.role
                     }));
-                
+
                 setSharedBoards(formattedShared);
             }
             catch (err) {
@@ -122,164 +207,204 @@ export default function Dashboard() {
 
             <div className="relative z-10 flex-1 flex flex-col w-full">
 
-            {/* Header */}
-            <header className="w-full bg-white/20 backdrop-blur-md border-b border-black/10">
-                <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between w-full">
-                    <div className="flex items-center space-x-2">
-                        {/* Minimalist Logo Icon */}
-                        <div className="w-6 h-6 rounded bg-black flex items-center justify-center">
-                            <div className="w-2 h-2 bg-white rotate-45" />
+                {/* Header */}
+                <header className="w-full bg-white/20 backdrop-blur-md border-b border-black/10">
+                    <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between w-full">
+                        <div className="flex items-center space-x-2">
+                            {/* Minimalist Logo Icon */}
+                            <div className="w-6 h-6 rounded bg-black flex items-center justify-center">
+                                <div className="w-2 h-2 bg-white rotate-45" />
+                            </div>
+                            <h1 className="text-xl font-bold tracking-tight text-black">
+                                Whiteboard
+                            </h1>
                         </div>
-                        <h1 className="text-xl font-bold tracking-tight text-black">
-                            Whiteboard
-                        </h1>
+
+                        <div className="flex items-center space-x-3">
+                            {/* User Avatar */}
+                            <div
+                                className="w-8 h-8 rounded-full bg-black/10 border border-black/20 flex items-center justify-center text-xs font-bold text-black cursor-pointer"
+                            >
+                                {user.email[0].toUpperCase()}
+                            </div>
+
+                            {/* Log Out Button with Red Border and Exit Symbol */}
+                            <button
+                                onClick={handleLogout}
+                                title="Log Out"
+                                className="w-fit gap h-8 rounded-lg border border-red-500 hover:bg-red-500/10 text-red-500 flex items-center justify-center gap-1 px-2 transition-all duration-200 active:scale-95 cursor-pointer"
+                            >
+                                <LogOut className="w-4 h-4" /> Log out
+                            </button>
+                        </div>
                     </div>
+                </header>
 
-                    <div className="flex items-center space-x-3">
-                        {/* User Avatar */}
-                        <div 
-                            className="w-8 h-8 rounded-full bg-black/10 border border-black/20 flex items-center justify-center text-xs font-bold text-black cursor-pointer"
-                        >
-                            {user.email[0].toUpperCase()}
+                {/* Main Content Area */}
+                <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-12 flex flex-col">
+
+                    {/* Welcome Section */}
+                    <div className="flex items-start justify-between w-full max-w-7xl mb-12">
+                        <div className="space-y-2 max-w-md">
+                            <h2 className="text-3xl font-light tracking-tight text-black">
+                                Your creative canvas.
+                            </h2>
+                            <p className="text-sm text-black leading-relaxed">
+                                Collaborate, map out flows, and sketch ideas in real-time with your team.
+                            </p>
                         </div>
 
-                        {/* Log Out Button with Red Border and Exit Symbol */}
+                        {/* Create button beside heading */}
                         <button
-                            onClick={handleLogout}
-                            title="Log Out"
-                            className="w-fit gap h-8 rounded-lg border border-red-500 hover:bg-red-500/10 text-red-500 flex items-center justify-center gap-1 px-2 transition-all duration-200 active:scale-95 cursor-pointer"
+                            onClick={() => setIsOpen(true)}
+                            className="inline-flex items-center space-x-2 bg-black hover:bg-neutral-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm active:scale-[0.98]"
                         >
-                            <LogOut className="w-4 h-4" /> Log out
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>Create</span>
                         </button>
                     </div>
-                </div>
-            </header>
 
-            {/* Main Content Area */}
-            <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-12 flex flex-col">
+                    {/* Landscape Workspace Sections */}
+                    <div className="w-full space-y-12 flex-1 flex flex-col justify-center">
 
-                {/* Welcome Section */}
-                <div className="flex items-start justify-between w-full max-w-7xl mb-12">
-                    <div className="space-y-2 max-w-md">
-                        <h2 className="text-3xl font-light tracking-tight text-black">
-                            Your creative canvas.
-                        </h2>
-                        <p className="text-sm text-black leading-relaxed">
-                            Collaborate, map out flows, and sketch ideas in real-time with your team.
-                        </p>
-                    </div>
-                    
-                    {/* Create button beside heading */}
-                    <button
-                        onClick={() => setIsOpen(true)}
-                        className="inline-flex items-center space-x-2 bg-black hover:bg-neutral-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm active:scale-[0.98]"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span>Create</span>
-                    </button>
-                </div>
-
-                {/* Landscape Workspace Sections */}
-                <div className="w-full space-y-12 flex-1 flex flex-col justify-center">
-                    
-                    {/* SECTION 1: MY BOARDS */}
-                    <div className="w-full space-y-4">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-black">My Boards</h3>
-                        {boards.length === 0 ? (
-                            /* Placeholder for no whiteboards */
-                            <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-white/20 rounded-2xl max-w-2xl w-full mx-auto bg-[#101010] backdrop-blur-[2px] shadow-lg">
-                                <div className="p-3 bg-white/10 rounded-full border border-white/20 shadow-sm mb-3">
-                                    <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16m8-8H4" />
-                                    </svg>
+                        {/* SECTION 1: MY BOARDS */}
+                        <div className="w-full space-y-4">
+                            <h3 className="text-sm font-bold uppercase tracking-wider text-black">My Boards</h3>
+                            {boards.length === 0 ? (
+                                /* Placeholder for no whiteboards */
+                                <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-white/20 rounded-2xl max-w-2xl w-full mx-auto bg-[#101010] backdrop-blur-[2px] shadow-lg">
+                                    <div className="p-3 bg-white/10 rounded-full border border-white/20 shadow-sm mb-3">
+                                        <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-sm text-white font-medium mb-1">No active boards</p>
+                                    <p className="text-xs text-white/50 mb-4">Get started by building your first collaborative space.</p>
+                                    <button
+                                        onClick={() => setIsOpen(true)}
+                                        className="inline-flex items-center space-x-2 bg-white hover:bg-neutral-200 text-[#101010] px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 shadow-sm active:scale-[0.98]"
+                                    >
+                                        <span>Create new project</span>
+                                    </button>
                                 </div>
-                                <p className="text-sm text-white font-medium mb-1">No active boards</p>
-                                <p className="text-xs text-white/50 mb-4">Get started by building your first collaborative space.</p>
-                                <button
-                                    onClick={() => setIsOpen(true)}
-                                    className="inline-flex items-center space-x-2 bg-white hover:bg-neutral-200 text-[#101010] px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 shadow-sm active:scale-[0.98]"
-                                >
-                                    <span>Create new project</span>
-                                </button>
-                            </div>
-                        ) : (
-                            /* Active list landscape cards grid layout */
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-                                {boards.map((board) => (
-                                    <div
-                                        key={board.id}
-                                        className="bg-[#101010] border border-dashed border-white/25 rounded-xl p-4 flex items-center justify-between shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
-                                        onClick={() => openWhiteboard(board.id)}
-                                    >
-                                        <div className="space-y-1 pr-4 min-w-0">
-                                            <p className="text-sm font-medium text-white truncate">
-                                                {board.title}
-                                            </p>
-                                            <p className="text-xs text-white/50">
-                                                Created {new Date(board.created_at || Date.now()).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                        <button className="bg-white hover:bg-neutral-200 text-[#101010] text-xs font-semibold px-3 py-1.5 rounded-md transition-colors duration-200 shrink-0">
-                                            Open
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                            ) : (
+                                /* Active list landscape cards grid layout */
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                                    {boards.map((board) => (
+                                        <div
+                                            key={board.id}
+                                            className="bg-[#101010] border border-dashed border-white/25 rounded-xl p-4 flex flex-col gap-3 shadow-md hover:shadow-lg transition-all duration-200"
+                                        >
+                                            {/* Top row: title + date + kebab */}
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="space-y-0.5 min-w-0">
+                                                    <p className="text-sm font-medium text-white truncate">
+                                                        {board.title}
+                                                    </p>
+                                                    <p className="text-xs text-white/50">
+                                                        Created {new Date(board.created_at || Date.now()).toLocaleDateString()}
+                                                    </p>
+                                                </div>
 
-                    {/* SECTION 2: SHARED WITH ME */}
-                    <div className="w-full space-y-4">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-black">Shared with me</h3>
-                        {sharedBoards.length === 0 ? (
-                            <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-white/20 rounded-2xl max-w-2xl w-full mx-auto bg-[#101010] backdrop-blur-[2px] text-center shadow-lg">
-                                <p className="text-sm text-white font-medium">No external shared spaces</p>
-                                <p className="text-xs text-white/50 mt-1 px-4">When others invite you to their workspace rooms, they'll show up here.</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-                                {sharedBoards.map((board) => (
-                                    <div
-                                        key={board.id}
-                                        className="bg-[#101010] border border-dashed border-white/25 rounded-xl p-4 flex items-center justify-between shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
-                                        onClick={() => openWhiteboard(board.id)}
-                                    >
-                                        <div className="space-y-2 pr-4 min-w-0">
-                                            <div className="space-y-0.5">
-                                                <p className="text-sm font-medium text-white truncate">
-                                                    {board.title}
-                                                </p>
-                                                <p className="text-xs text-white/50">
-                                                    Created {new Date(board.created_at || Date.now()).toLocaleDateString()}
-                                                </p>
+                                                {/* Kebab menu */}
+                                                <div className="relative shrink-0">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === board.id ? null : board.id); }}
+                                                        className="p-1 rounded-md text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                                                    >
+                                                        <MoreVertical className="w-4 h-4" />
+                                                    </button>
+
+                                                    {/* Dropdown */}
+                                                    {openMenuId === board.id && (
+                                                        <div
+                                                            className="absolute right-0 top-7 z-20 w-44 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl overflow-hidden"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <button
+                                                                onClick={() => openRename(board)}
+                                                                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-white hover:bg-white/10 transition-colors"
+                                                            >
+                                                                <Pencil className="w-3.5 h-3.5 text-white/60" />
+                                                                Rename board
+                                                            </button>
+                                                            <div className="h-px bg-white/10" />
+                                                            <button
+                                                                onClick={() => openDelete(board)}
+                                                                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                Delete board
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            {/* Role badge marker */}
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase border ${
-                                                board.role === 'editor' 
-                                                    ? 'bg-blue-950/40 text-blue-300 border-blue-800/60' 
-                                                    : 'bg-white/10 text-white border-white/20'
-                                            }`}>
-                                                {board.role}
-                                            </span>
+
+                                            {/* Bottom row: Open button */}
+                                            <button
+                                                onClick={() => openWhiteboard(board.id)}
+                                                className="w-full bg-white hover:bg-neutral-200 text-[#101010] text-xs font-semibold px-3 py-1.5 rounded-md transition-colors duration-200"
+                                            >
+                                                Launch
+                                            </button>
                                         </div>
-                                        <button className="bg-white hover:bg-neutral-200 text-[#101010] text-xs font-semibold px-3 py-1.5 rounded-md transition-colors duration-200 shrink-0">
-                                            Open
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* SECTION 2: SHARED WITH ME */}
+                        <div className="w-full space-y-4">
+                            <h3 className="text-sm font-bold uppercase tracking-wider text-black">Shared with me</h3>
+                            {sharedBoards.length === 0 ? (
+                                <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-white/20 rounded-2xl max-w-2xl w-full mx-auto bg-[#101010] backdrop-blur-[2px] text-center shadow-lg">
+                                    <p className="text-sm text-white font-medium">No external shared spaces</p>
+                                    <p className="text-xs text-white/50 mt-1 px-4">When others invite you to their workspace rooms, they'll show up here.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                                    {sharedBoards.map((board) => (
+                                        <div
+                                            key={board.id}
+                                            className="bg-[#101010] border border-dashed border-white/25 rounded-xl p-4 flex items-center justify-between shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
+                                            onClick={() => openWhiteboard(board.id)}
+                                        >
+                                            <div className="space-y-2 pr-4 min-w-0">
+                                                <div className="space-y-0.5">
+                                                    <p className="text-sm font-medium text-white truncate">
+                                                        {board.title}
+                                                    </p>
+                                                    <p className="text-xs text-white/50">
+                                                        Created {new Date(board.created_at || Date.now()).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                                {/* Role badge marker */}
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase border ${board.role === 'editor'
+                                                        ? 'bg-blue-950/40 text-blue-300 border-blue-800/60'
+                                                        : 'bg-white/10 text-white border-white/20'
+                                                    }`}>
+                                                    {board.role}
+                                                </span>
+                                            </div>
+                                            <button className="bg-white hover:bg-neutral-200 text-[#101010] text-xs font-semibold px-3 py-1.5 rounded-md transition-colors duration-200 shrink-0">
+                                                Launch
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
                     </div>
 
-                </div>
-
-                {/* Subtle Footer info */}
-                <footer className="text-center text-xs text-black font-semibold pt-12 mt-auto">
-                    System connected to Supabase Auth backend.
-                </footer>
-            </main>
+                    {/* Subtle Footer info */}
+                    <footer className="text-center text-xs text-black font-semibold pt-12 mt-auto">
+                        WhiteBoard
+                    </footer>
+                </main>
 
             </div>
 
@@ -350,6 +475,97 @@ export default function Dashboard() {
                     </div>
                 </div>
             )}
+
+            {/* ── RENAME DIALOG ─────────────────────────── */}
+            <dialog
+                ref={renameDialogRef}
+                onClose={() => setIsRenameOpen(false)}
+                className="fixed inset-0 m-auto w-full max-w-md rounded-xl border border-[#e4dec3] bg-[#f5f2eb] p-6 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+            >
+                <div className="space-y-4">
+                    <div className="space-y-1">
+                        <h3 className="text-lg font-medium text-neutral-900">Rename board</h3>
+                        <p className="text-xs text-neutral-500">Enter a new name for <span className="font-semibold text-neutral-700">{selectedBoard?.title}</span>.</p>
+                    </div>
+
+                    <form
+                        method="dialog"
+                        onSubmit={renameBoard}
+                        className="space-y-4"
+                    >
+                        <div className="space-y-1.5">
+                            <label htmlFor="renameInput" className="text-xs font-medium text-neutral-500 block">
+                                New name
+                            </label>
+                            <input
+                                id="renameInput"
+                                type="text"
+                                required
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                placeholder="e.g., Q3 System Architecture"
+                                className="w-full bg-white/70 border border-[#d1ccc0] rounded-lg px-3.5 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-colors duration-200"
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="flex justify-end space-x-2 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsRenameOpen(false)}
+                                className="px-4 py-2 border border-[#d1ccc0] text-neutral-600 text-sm font-medium rounded-lg hover:bg-neutral-100 transition-colors duration-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="bg-neutral-900 hover:bg-neutral-800 text-[#f5f2eb] px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                            >
+                                Rename
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </dialog>
+
+            {/* ── DELETE DIALOG ─────────────────────────── */}
+            <dialog
+                ref={deleteDialogRef}
+                onClose={() => setIsDeleteOpen(false)}
+                className="fixed inset-0 m-auto w-full max-w-md rounded-xl border border-[#e4dec3] bg-[#f5f2eb] p-6 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+            >
+                <div className="space-y-4">
+                    <div className="space-y-1">
+                        <h3 className="text-lg font-medium text-neutral-900">Delete board</h3>
+                        <p className="text-xs text-neutral-500">
+                            Are you sure you want to delete <span className="font-semibold text-neutral-700">{selectedBoard?.title}</span>? This action cannot be undone.
+                        </p>
+                    </div>
+
+                    <form
+                        method="dialog"
+                        onSubmit={deleteBoard}
+                        className="space-y-4"
+                    >
+                        <div className="flex justify-end space-x-2 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsDeleteOpen(false)}
+                                className="px-4 py-2 border border-[#d1ccc0] text-neutral-600 text-sm font-medium rounded-lg hover:bg-neutral-100 transition-colors duration-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </dialog>
+
         </div>
     );
 }
