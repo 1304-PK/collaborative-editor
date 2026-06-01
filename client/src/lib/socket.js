@@ -9,8 +9,10 @@ export function connectSocket() {
   return socket;
 }
 
-export function disconnectSocket() {
+export function disconnectSocket({boardId, userId}) {
   if (!socket) throw new Error("No socket instance found");
+
+  socket.emit("user-disconnect", {boardId, userId})
 
   socket.disconnect();
   socket = null;
