@@ -23,10 +23,10 @@ export default function WhiteboardRoom() {
     const [boardTitle, setBoardTitle] = useState('Loading board...');
     const [collabInfo, setCollabInfo] = useState({ role: "editor" })
     const [editor, setEditor] = useState(null)
-    const [saveStatus, setSaveStatus] = useState("Saved")
+    const [saveStatus, setSaveStatus] = useState(false)
 
-    // const socketRef = useSocket()
-    useWhiteboardSync(editor, connectSocket, boardId)
+    // Custom hook for whiteboard sync
+    useWhiteboardSync(editor, connectSocket, boardId, setSaveStatus)
 
     const {user} = useAuth()
     console.log(user)
@@ -142,6 +142,8 @@ export default function WhiteboardRoom() {
 
             {/* Dynamic Top Bar utility section matching your clean design */}
             <header className="w-full bg-[#f5f2eb] border-b border-[#e4dec3]/60 px-4 py-3 flex items-center justify-between z-10 shrink-0">
+
+                {/* Left section: Back button + Board title */}
                 <div className="flex items-center space-x-4">
                     <button
                         onClick={() => navigate('/dashboard')}
@@ -158,12 +160,27 @@ export default function WhiteboardRoom() {
                     </h1>
                 </div>
 
-                {/* Notify user about saving the whiteboard */}
-                <div>
-                    {saveStatus}
-                </div>
+                {/* Right section: Save status + Share + Cloud Connected */}
+                <div className="flex items-center space-x-3">
 
-                <div className="flex items-center space-x-4">
+                    {/* Save status pill */}
+                    <div className="px-3 py-1.5 bg-neutral-900 text-white rounded-md text-xs font-medium shadow-sm flex items-center space-x-1.5 select-none">
+                        {saveStatus ? (
+                            <>
+                                <svg className="w-3 h-3 animate-spin text-emerald-400" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                </svg>
+                                <span>Saving</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                                <span>Saved</span>
+                            </>
+                        )}
+                    </div>
+
                     {/* Share Action Button */}
                     <button
                         onClick={() => setIsShareOpen(true)}
@@ -175,10 +192,12 @@ export default function WhiteboardRoom() {
                         <span>Share</span>
                     </button>
 
+                    {/* Cloud connection indicator */}
                     <div className="flex items-center space-x-2">
                         <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="text-xs text-neutral-400 font-medium">Cloud Connected</span>
                     </div>
+
                 </div>
             </header>
 

@@ -2,11 +2,10 @@ import { supabase } from "../lib/supabaseClient";
 
 let saveTimeout = null
 
-const saveBoard = (editor, boardId) => {
+const saveBoard = (editor, boardId, setSaveStatus) => {
     clearTimeout(saveTimeout)
-
+    setSaveStatus(true)
     saveTimeout = setTimeout(async () => {
-
         const snapshot = JSON.stringify(editor.getSnapshot())
         const {data, error} = await supabase
         .from("whiteboards")
@@ -14,6 +13,7 @@ const saveBoard = (editor, boardId) => {
         .eq('id', boardId)
 
         console.log("hellobiii")
+        setSaveStatus(false)
     }, 1000);
 }
 
