@@ -26,19 +26,19 @@ function FAQItem({ q, a }) {
   const [open, setOpen] = useState(false);
   return (
     <div
-      className="border rounded-xl overflow-hidden transition-all duration-300 bg-gray-400"
+      className="border rounded-xl overflow-hidden transition-all duration-300 bg-black"
       style={{ borderColor: open ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.1)" }}
     >
       <button
         className="w-full flex items-center justify-between px-6 py-4 text-left gap-4"
         onClick={() => setOpen(!open)}
       >
-        <span className="font-semibold text-[#1a1a2e] text-sm leading-snug">{q}</span>
+        <span className="font-semibold text-white text-sm leading-snug">{q}</span>
         <ChevronDown
           size={18}
           className="flex-shrink-0 transition-transform duration-300"
           style={{
-            color: ACCENT,
+            color: "white",
             transform: open ? "rotate(180deg)" : "rotate(0deg)",
           }}
         />
@@ -169,7 +169,9 @@ export default function LandingPage() {
           ))}
         </div>
 
-        <button className="btn-primary pulse-ring px-5 py-2 rounded-lg text-sm font-semibold">
+        <button className="btn-primary pulse-ring px-5 py-2 rounded-lg text-sm font-semibold"
+        onClick={() => {navigate("/auth/login")}}
+        >  
           Launch Canvas
         </button>
       </nav>
@@ -215,7 +217,7 @@ export default function LandingPage() {
 
               <div className="flex flex-wrap gap-3">
                 <button className="btn-primary flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
-                onClick={() => {navigate("/dashboard")}}
+                onClick={() => {navigate("/auth/login")}}
                 >
                   Launch Canvas
                   <ArrowRight size={16} />
@@ -279,7 +281,7 @@ export default function LandingPage() {
       {/* ── FEATURES ─────────────────────────────── */}
       <section className="px-6 md:px-12 py-24 max-w-7xl mx-auto">
         <div className="text-center mb-14">
-          <p className="mono text-xs uppercase tracking-widest mb-3 text-black">
+          <p className="mono text-xs uppercase tracking-widest mb-3 text-white bg-black mx-auto w-fit px-3 py-1 rounded-full">
             Core Capabilities
           </p>
           <h2 className=" text-3xl md:text-4xl font-700 text-[#1a1a2e] leading-tight"
@@ -296,20 +298,20 @@ export default function LandingPage() {
                 key={f.title}
                 className="card-hover rounded-2xl p-6"
                 style={{
-                  background: "#ebebeb",
-                  border: "1px solid rgba(0,0,0,0.08)",
+                  background: "#101010",
+                  border: "1px solid #ebebeba1",
                 }}
               >
                 <div
                   className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
                   style={{
-                    background: "rgba(0,0,0,0.07)",
+                    background: "white",
                     border: "1px solid rgba(0,0,0,0.1)",
                   }}
                 >
                   <Icon size={20} color="#000" />
                 </div>
-                <h3 className=" font-700 text-[#1a1a2e] text-base mb-2 leading-snug"
+                <h3 className=" font-700 text-[white] text-base mb-2 leading-snug"
                   style={{ fontFamily: "Sora" }}>
                   {f.title}
                 </h3>
@@ -376,7 +378,7 @@ export default function LandingPage() {
       {/* ── COMPARISON TABLE ─────────────────────── */}
       <section className="px-6 md:px-12 mb-24 max-w-5xl mx-auto">
         <div className="text-center mb-12">
-          <p className="mono text-xs uppercase tracking-widest mb-3 text-black">
+          <p className="mono text-xs uppercase tracking-widest mb-3 text-white bg-black w-fit m-auto px-3 py-1 rounded-full ">
             Technical Edge
           </p>
           <h2 className="syne text-3xl md:text-4xl font-700 text-[#1a1a2e]">
@@ -424,7 +426,7 @@ export default function LandingPage() {
                   </div>
                   <span className="font-semibold text-[#1a1a2e] text-sm">{row.feature}</span>
                 </div>
-                <p className="text-sm text-white leading-relaxed">{row.detail}</p>
+                <p className="text-sm text-black leading-relaxed">{row.detail}</p>
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-black" />
                   <p className="text-sm font-medium text-[#1a1a2e]">{row.benefit}</p>
@@ -469,12 +471,12 @@ export default function LandingPage() {
             <button
               className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold text-black bg-white transition-all hover:scale-105 active:scale-100"
               style={{ boxShadow: "0 8px 32px rgba(255,255,255,0.14)" }}
-              onClick={() => {navigate("/dashboard")}}
+              onClick={() => {navigate("/auth/login")}}
             >
               Open Your First Board Now
               <ArrowRight size={18} />
             </button>
-            <p className="text-zinc-600 text-xs mt-4">No credit card required · Free forever plan</p>
+            <p className="text-gray-400 text-xs mt-4">No credit card required · Free forever plan</p>
           </div>
         </div>
       </section>
@@ -485,7 +487,9 @@ export default function LandingPage() {
           <p className="mono text-xs uppercase tracking-widest mb-3 text-black">
             FAQ
           </p>
-          <h2 className="syne text-3xl md:text-4xl font-700 text-[#1a1a2e]">
+          <h2 className="text-3xl md:text-4xl font-700 text-[#1a1a2e]"
+          style={{fontFamily: "Sora"}}
+          >
             Common questions
           </h2>
         </div>
@@ -507,10 +511,10 @@ export default function LandingPage() {
             <div className="w-6 h-6 rounded-md flex items-center justify-center bg-black">
               <Layers size={12} className="text-white" />
             </div>
-            <span className="syne font-700 text-sm text-black">Vektrix</span>
+            <span className="syne font-700 text-sm text-black">Whiteboard</span>
           </div>
           <p className="text-xs text-white mono">
-            © 2025 Vektrix Inc. Built for builders.
+            © 2026 Whiteboard Inc. Built for builders.
           </p>
           <div className="flex items-center gap-6">
             {["Privacy", "Terms", "Status", "GitHub"].map((l) => (
