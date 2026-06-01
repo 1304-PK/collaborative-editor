@@ -1,11 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket } from "../lib/socket";
 import saveBoard from "../utils/saveBoard";
 import { supabase } from "../lib/supabaseClient";
 
 import { useAuth } from "../context/AuthContext";
 
-const useWhiteboardSync = (editor, socketRef, boardId) => {
+const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus) => {
 
     const {user} = useAuth()
 
@@ -38,7 +38,12 @@ const useWhiteboardSync = (editor, socketRef, boardId) => {
         const cleanup = editor.store.listen((update) => {
 
             // Code to print board 1 second after user is still
-            saveBoard(editor, boardId)
+            // const callSaveBoard = async () => {
+            //     setSaveStatus(true)
+            saveBoard(editor, boardId, setSaveStatus)
+            //     setSaveStatus(false)
+            // }
+            // callSaveBoard()
 
             const { added, updated, removed } = update.changes
 
