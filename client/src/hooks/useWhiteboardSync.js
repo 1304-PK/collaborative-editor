@@ -5,9 +5,13 @@ import { supabase } from "../lib/supabaseClient";
 
 import { useAuth } from "../context/AuthContext";
 
-const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus) => {
+const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole) => {
 
     const {user} = useAuth()
+
+    editor?.updateInstanceState({
+        isReadonly: userRole==='viewer'
+    })
 
     useEffect(() => {
 

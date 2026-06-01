@@ -136,20 +136,20 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex items-center space-x-3">
-                        {/* User Profile Placeholder */}
+                        {/* User Avatar */}
                         <div 
                             className="w-8 h-8 rounded-full bg-black/10 border border-black/20 flex items-center justify-center text-xs font-bold text-black cursor-pointer"
                         >
-                            U
+                            {user.email[0].toUpperCase()}
                         </div>
 
                         {/* Log Out Button with Red Border and Exit Symbol */}
                         <button
                             onClick={handleLogout}
                             title="Log Out"
-                            className="w-8 h-8 rounded-lg border border-red-500 hover:bg-red-500/10 text-red-500 flex items-center justify-center transition-all duration-200 active:scale-95 cursor-pointer"
+                            className="w-fit gap h-8 rounded-lg border border-red-500 hover:bg-red-500/10 text-red-500 flex items-center justify-center gap-1 px-2 transition-all duration-200 active:scale-95 cursor-pointer"
                         >
-                            <LogOut className="w-4 h-4" />
+                            <LogOut className="w-4 h-4" /> Log out
                         </button>
                     </div>
                 </div>
