@@ -55,6 +55,12 @@ io.on("connection", (socket) => {
         socket.to(boardId).emit("user-connected", { userId, userEmail, userColor })
     })
 
+    // Event for displaying notification for user leaving
+    socket.on("user-disconnect", ({boardId, userId}) => {
+        const {userEmail} = getUserData(roomData, boardId, userId)
+        socket.to(boardId).emit("user-disconnect-notif", (userEmail))
+    })
+
     socket.on("whiteboard-update", ({ changes, boardId, userId }) => {
         const { userColor, userEmail } = getUserData(roomData, boardId, userId)
         socket.to(boardId).emit("whiteboard-update", { changes, userColor, userEmail })
