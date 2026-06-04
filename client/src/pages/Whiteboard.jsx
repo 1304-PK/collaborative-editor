@@ -179,6 +179,8 @@ export default function WhiteboardRoom() {
         );
     }
 
+    console.log("FINALE", updateCards)
+
     return (
         <div className="w-screen h-screen flex flex-col bg-[#f5f2eb] select-none relative">
             <Toast ref={toastRef} />
@@ -186,7 +188,7 @@ export default function WhiteboardRoom() {
             {/* Render Update Cards */}
             {updateCards?.map((card) => {
                 return (
-                    <BoardUpdateCard x={card.x} y={card.y} />
+                    <BoardUpdateCard x={card.x} y={card.y} userName={card.userName} userColor={card.userColor}/>
                 )
             })}
 
