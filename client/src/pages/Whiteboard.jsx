@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tldraw } from '@tldraw/tldraw';
+import getRandomInt from '../utils/getRandomInt';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { connectSocket, disconnectSocket } from '../lib/socket';
+import BoardUpdateCard from '../components/BoardUpdateCard';
 import useWhiteboardSync from "../hooks/useWhiteboardSync";
 import { Toast } from 'primereact/toast';
 
@@ -26,32 +28,33 @@ export default function WhiteboardRoom() {
     const [editor, setEditor] = useState(null)
     const [saveStatus, setSaveStatus] = useState(false)
     const [userRole, setUserRole] = useState("")
+    const [updateCards, setUpdateCards] = useState([])
 
     // Custom hook for whiteboard sync
-    useWhiteboardSync(editor, connectSocket, boardId, setSaveStatus, userRole)
+    useWhiteboardSync(editor, connectSocket, boardId, setSaveStatus, userRole, setUpdateCards)
 
-    const {user} = useAuth()
-    console.log(user)
+    const { user } = useAuth()
+
     // State to manage the share popup modal visibility
     const [isShareOpen, setIsShareOpen] = useState(false);
 
     // Fetch user role from db
     useEffect(() => {
         const getUserRole = async () => {
-            try{
-                const {data, error} = await supabase
-                .from("collaborators")
-                .select("role")
-                .eq('whiteboard_id', boardId)
-                .eq('user_id', user.id)
-                .single()
+            try {
+                const { data, error } = await supabase
+                    .from("collaborators")
+                    .select("role")
+                    .eq('whiteboard_id', boardId)
+                    .eq('user_id', user.id)
+                    .single()
 
                 if (error) throw new Error(error)
 
                 setUserRole(data.role)
                 console.log(data.role)
             }
-            catch(err){
+            catch (err) {
                 console.error(err)
             }
         }
@@ -91,9 +94,9 @@ export default function WhiteboardRoom() {
 
     useEffect(() => {
         const socket = connectSocket();
-        
+
         const joinRoom = () => {
-            socket.emit("join-room", { boardId, userId: user.id , userEmail: user.email});
+            socket.emit("join-room", { boardId, userId: user.id, userEmail: user.email });
 
             console.log("hey bitch", user.email);
         };
@@ -106,7 +109,7 @@ export default function WhiteboardRoom() {
         }
 
         socket.on("user-connected", ({ userId, userEmail }) => {
-            console.log(userEmail);
+            ;
             toastRef.current?.show({
                 severity: 'info',
                 summary: 'Collaborator Connected',
@@ -115,9 +118,23 @@ export default function WhiteboardRoom() {
             });
         });
 
+        // Display toast notification for user disconnected
+        socket.on("user-disconnect-notif", (userEmail) => {
+            console.log("User disconnected", userEmail)
+            toastRef.current?.show({
+                severity: "error",
+                summary: "Collaborater Left",
+                detail: `${getName(userEmail)} has left the whiteboard session`,
+                life: 3000
+            })
+        })
+
         return () => {
             socket.off("user-connected");
-            disconnectSocket({boardId, userId: user.id});
+
+            // Display toast notification for user disconnected
+
+            disconnectSocket({ boardId, userId: user.id });
         };
     }, [boardId]);
 
@@ -163,8 +180,15 @@ export default function WhiteboardRoom() {
     }
 
     return (
-        <div className="w-screen h-screen flex flex-col bg-[#f5f2eb] select-none">
+        <div className="w-screen h-screen flex flex-col bg-[#f5f2eb] select-none relative">
             <Toast ref={toastRef} />
+
+            {/* Render Update Cards */}
+            {updateCards?.map((card) => {
+                return (
+                    <BoardUpdateCard x={card.x} y={card.y} />
+                )
+            })}
 
             {/* Dynamic Top Bar utility section matching your clean design */}
             <header className="w-full bg-[#f5f2eb] border-b border-[#e4dec3]/60 px-4 py-3 flex items-center justify-between z-10 shrink-0">
