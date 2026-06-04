@@ -3,9 +3,10 @@ import { connectSocket, disconnectSocket } from "../lib/socket";
 import saveBoard from "../utils/saveBoard";
 import { supabase } from "../lib/supabaseClient";
 
+import getRandomInt from "../utils/getRandomInt"
 import { useAuth } from "../context/AuthContext";
 
-const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole) => {
+const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, setUpdateCards) => {
 
     const {user} = useAuth()
 
@@ -40,14 +41,9 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole) 
         console.log("hook connected to editor....")
 
         const cleanup = editor.store.listen((update) => {
-
+            console.log(update)
             // Code to print board 1 second after user is still
-            // const callSaveBoard = async () => {
-            //     setSaveStatus(true)
             saveBoard(editor, boardId, setSaveStatus)
-            //     setSaveStatus(false)
-            // }
-            // callSaveBoard()
 
             const { added, updated, removed } = update.changes
 
@@ -66,7 +62,8 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole) 
                 changes.updated?.length > 0 ||
                 changes.removed?.length > 0
 
-            if (hasChanges) {
+            // Only emit if changes are local (not from remote merges)
+            if (hasChanges && update.source === 'user') {
                 socket.emit("whiteboard-update", { changes, boardId, userId: user.id })
             }
 
@@ -74,6 +71,53 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole) 
 
         //sync whiteboard across the room
         const handleRemoteUpdate = ({changes, userColor, userEmail}) => {
+
+            // Function to handle update cards
+            // const {added} = changes
+            // if (added.length>0){
+            //     console.log(changes.added)
+            //     const cardId = getRandomInt();
+
+            //     // get viewport coordinates from actual coordinates
+            //     const pos = editor.pageToViewport({
+            //         x: added[0].x,
+            //         y: added[0].y
+            //     })
+
+            //     setUpdateCards(prev => [...prev, {
+            //         id: cardId,
+            //         x: Math.ceil(pos.x),
+            //         y: Math.ceil(pos.y)
+            //     }])
+
+                // setTimeout(() => {
+                //     setUpdateCards(prev => prev.filter(item => item.id!=cardId))
+                // }, 2000);
+            // }
+
+            // Function to handle update cards
+            // const {added} = changes
+            // if (added.length>0){
+            //     const cardId = crypto.randomUUID()
+
+            //     // get viewport coordinates from actual coordinates
+            //     const pos = editor.pageToViewport({
+            //         x: added[0].x,
+            //         y: added[0].y
+            //     })
+
+            //     setUpdateCards(prev => [...prev, {
+            //         id: cardId,
+            //         x: Math.ceil(pos.x),
+            //         y: Math.ceil(pos.y)
+            //     }])
+
+            //     setTimeout(() => {
+            //         setUpdateCards(prev => prev.filter(card => card.id!==cardId))
+            //         // console.log("timeout chala", cardId)
+            //     }, 2000)
+            // }
+
             editor.store.mergeRemoteChanges(() => {
                 const { added, updated, removed } = changes;
 
