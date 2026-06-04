@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket } from "../lib/socket";
 import saveBoard from "../utils/saveBoard";
 import { supabase } from "../lib/supabaseClient";
-
+import getName from "../utils/getName";
 import getRandomInt from "../utils/getRandomInt"
 import { useAuth } from "../context/AuthContext";
 
@@ -96,27 +96,28 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
             // }
 
             // Function to handle update cards
-            // const {added} = changes
-            // if (added.length>0){
-            //     const cardId = crypto.randomUUID()
+            const {added} = changes
+            if (added.length>0){
+                const cardId = crypto.randomUUID()
 
-            //     // get viewport coordinates from actual coordinates
-            //     const pos = editor.pageToViewport({
-            //         x: added[0].x,
-            //         y: added[0].y
-            //     })
+                // get viewport coordinates from actual coordinates
+                const pos = editor.pageToViewport({
+                    x: added[0].x,
+                    y: added[0].y
+                })
 
-            //     setUpdateCards(prev => [...prev, {
-            //         id: cardId,
-            //         x: Math.ceil(pos.x),
-            //         y: Math.ceil(pos.y)
-            //     }])
+                setUpdateCards(prev => [...prev, {
+                    id: cardId,
+                    userName: getName(userEmail),
+                    userColor: userColor,
+                    x: Math.ceil(pos.x),
+                    y: Math.ceil(pos.y)
+                }])
 
-            //     setTimeout(() => {
-            //         setUpdateCards(prev => prev.filter(card => card.id!==cardId))
-            //         // console.log("timeout chala", cardId)
-            //     }, 2000)
-            // }
+                setTimeout(() => {
+                    setUpdateCards(prev => prev.filter(card => card.id!==cardId))
+                }, 2000)
+            }
 
             editor.store.mergeRemoteChanges(() => {
                 const { added, updated, removed } = changes;
