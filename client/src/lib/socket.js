@@ -1,11 +1,18 @@
-import { io } from "socket.io-client";
+import { io } from "socket.io-client"
+import { useAuth } from "../context/AuthContext";
 
 let socket = null;
 
-export function connectSocket() {
+export function connectSocket(session, boardId) {
   if (socket?.connected) return socket;
 
-  socket = io("http://localhost:3000");
+  // Establish connection and send the current access token for information
+  socket = io("http://localhost:3000", {
+    auth: {
+      token: session?.access_token,
+      boardId, boardId
+    }
+  });
   return socket;
 }
 
