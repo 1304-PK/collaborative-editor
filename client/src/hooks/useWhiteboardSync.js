@@ -24,6 +24,8 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
                 .eq("id", boardId)
                 .single()
 
+            if (Object.keys(data.canvas_data).length===0) return
+
             const snapshot = JSON.parse(data.canvas_data)
             editor.loadSnapshot(snapshot)
         }
@@ -72,30 +74,6 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
         //sync whiteboard across the room
         const handleRemoteUpdate = ({changes, userColor, userEmail}) => {
 
-            // Function to handle update cards
-            // const {added} = changes
-            // if (added.length>0){
-            //     console.log(changes.added)
-            //     const cardId = getRandomInt();
-
-            //     // get viewport coordinates from actual coordinates
-            //     const pos = editor.pageToViewport({
-            //         x: added[0].x,
-            //         y: added[0].y
-            //     })
-
-            //     setUpdateCards(prev => [...prev, {
-            //         id: cardId,
-            //         x: Math.ceil(pos.x),
-            //         y: Math.ceil(pos.y)
-            //     }])
-
-                // setTimeout(() => {
-                //     setUpdateCards(prev => prev.filter(item => item.id!=cardId))
-                // }, 2000);
-            // }
-
-            // Function to handle update cards
             const {added} = changes
             if (added.length>0){
                 const cardId = crypto.randomUUID()
