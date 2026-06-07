@@ -3,9 +3,12 @@ const cors = require("cors")
 const http = require("http")
 const { Server } = require("socket.io")
 require("dotenv").config()
+const supabaseAdmin = require("./config/supabaseClient")
 
 const genRandomColor = require("./utils/genRandomColor")
 const getUserData = require("./utils/getUserData")
+
+const { getUserRole } = require("./db/collaborators")
 
 // Initialize express
 const app = express()
@@ -25,7 +28,30 @@ const roomData = {
 
 }
 
-// Handle connection events
+// SOCKET.IO middlewares
+io.use(async (socket, next) => {
+    try {
+        const token = socket.handshake.auth.token
+        const boardId = socket.handshake.auth.boardId
+
+        const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+
+        if (error || !user) throw new Error("User doesn't exist")
+
+        socket.user = user
+        const role = getUserRole(boardId, socket.user.id)
+
+        socket.user.role = role
+
+        next()
+    }
+    catch(err){
+        return next(new Error(err))
+    }
+})
+
+
+// SOCKET.IO connection events
 io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`)
 
@@ -56,8 +82,8 @@ io.on("connection", (socket) => {
     })
 
     // Event for displaying notification for user leaving
-    socket.on("user-disconnect", ({boardId, userId}) => {
-        const {userEmail} = getUserData(roomData, boardId, userId)
+    socket.on("user-disconnect", ({ boardId, userId }) => {
+        const { userEmail } = getUserData(roomData, boardId, userId)
         socket.to(boardId).emit("user-disconnect-notif", (userEmail))
     })
 
@@ -68,9 +94,9 @@ io.on("connection", (socket) => {
     })
 
     // Logic to remove user from Room Data on disconnecting
-    socket.on("user-disconnect", ({boardId, userId}) => {
+    socket.on("user-disconnect", ({ boardId, userId }) => {
         if (!roomData[boardId]) return
-        
+
         roomData[boardId] = roomData[boardId].filter(user => user.userId != userId)
     })
 
