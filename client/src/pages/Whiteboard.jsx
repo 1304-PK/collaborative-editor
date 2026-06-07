@@ -33,7 +33,7 @@ export default function WhiteboardRoom() {
     // Custom hook for whiteboard sync
     useWhiteboardSync(editor, connectSocket, boardId, setSaveStatus, userRole, setUpdateCards)
 
-    const { user } = useAuth()
+    const { user, session } = useAuth()
 
     // State to manage the share popup modal visibility
     const [isShareOpen, setIsShareOpen] = useState(false);
@@ -93,7 +93,7 @@ export default function WhiteboardRoom() {
     }, [boardId, navigate]);
 
     useEffect(() => {
-        const socket = connectSocket();
+        const socket = connectSocket(session, boardId);
 
         const joinRoom = () => {
             socket.emit("join-room", { boardId, userId: user.id, userEmail: user.email });
