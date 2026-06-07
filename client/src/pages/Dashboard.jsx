@@ -71,7 +71,7 @@ export default function Dashboard() {
                 .select()
 
             if (error) {
-                throw new Error(error.message)
+                throw error.message
             }
 
             // Update list with the new created whiteboard
