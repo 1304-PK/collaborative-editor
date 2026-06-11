@@ -17,6 +17,9 @@ import '@tldraw/tldraw/tldraw.css';
 
 export default function WhiteboardRoom() {
 
+    // Socket ref
+    const socketRef = useRef(null)
+
     const { id: boardId } = useParams();
     const toastRef = useRef(null);
     const navigate = useNavigate();
@@ -31,7 +34,7 @@ export default function WhiteboardRoom() {
     const [updateCards, setUpdateCards] = useState([])
 
     // Custom hook for whiteboard sync
-    useWhiteboardSync(editor, connectSocket, boardId, setSaveStatus, userRole, setUpdateCards)
+    useWhiteboardSync(editor, socketRef, boardId, setSaveStatus, userRole, setUpdateCards)
 
     const { user, session } = useAuth()
 
@@ -40,17 +43,40 @@ export default function WhiteboardRoom() {
 
     // Get board data and establish socket connection
     useEffect(() => {
-        if (!session || !user) return
+        if (!user || !session) return
 
-        let socketInstance = null
         let mounted = true
+
+        // ✅ Named handlers defined in effect scope
+        // cleanup can always reference these regardless of async timing
+        const handleUserConnected = ({ userId, userEmail }) => {
+            toastRef.current?.show({
+                severity: 'info',
+                summary: 'Collaborator Connected',
+                detail: `${getName(userEmail)} has joined the whiteboard session.`,
+                life: 3000
+            })
+        }
+
+        const handleUserDisconnected = (userEmail) => {
+            toastRef.current?.show({
+                severity: "error",
+                summary: "Collaborator Left",
+                detail: `${getName(userEmail)} has left the whiteboard session`,
+                life: 3000
+            })
+        }
+
+        const handleConnectError = (err) => {
+            console.log("Error aaya", err)
+        }
 
         const getBoardData = async () => {
             try {
                 const res = await fetch(`http://localhost:3000/api/board/access/${boardId}`, {
                     method: "GET",
                     headers: {
-                        Authorization: `Bearer: ${session.access_token}`
+                        Authorization: `Bearer ${session.access_token}`
                     }
                 })
 
@@ -58,7 +84,6 @@ export default function WhiteboardRoom() {
                 console.log(data)
 
                 if (!res.ok) {
-                    console.log("you are unauthorized bitch")
                     navigate("/dashboard")
                     return
                 }
@@ -72,39 +97,28 @@ export default function WhiteboardRoom() {
                     setInitialSnapshot(hasData ? boardData.canvas_data : null)
                 }
 
-                socketInstance = connectSocket(session, boardId)
+                // ✅ Check mounted before doing anything after await
+                // Effect may have already cleaned up by the time this resolves
+                if (!mounted) return
+
+                const socket = connectSocket(session, boardId)
+                socketRef.current = socket
 
                 const joinRoom = () => {
-                    socketInstance.emit("join-room", { boardId, userId: user.id, userEmail: user.email })
+                    socket.emit("join-room", { boardId, userId: user.id, userEmail: user.email })
                 }
 
-                if (socketInstance.connected) {
+                if (socket.connected) {
                     joinRoom()
                 } else {
-                    socketInstance.once("connect", joinRoom)
+                    socket.once("connect", joinRoom)
                 }
 
-                socketInstance.on("user-connected", ({ userId, userEmail }) => {
-                    toastRef.current?.show({
-                        severity: 'info',
-                        summary: 'Collaborator Connected',
-                        detail: `${getName(userEmail)} has joined the whiteboard session.`,
-                        life: 3000
-                    })
-                })
+                // ✅ Attach named handlers, not inline anonymous functions
+                socket.on("user-connected", handleUserConnected)
+                socket.on("user-disconnect-notif", handleUserDisconnected)
+                socket.on("connect_error", handleConnectError)
 
-                socketInstance.on("user-disconnect-notif", (userEmail) => {
-                    toastRef.current?.show({
-                        severity: "error",
-                        summary: "Collaborater Left",
-                        detail: `${getName(userEmail)} has left the whiteboard session`,
-                        life: 3000
-                    })
-                })
-
-                socketInstance.on("connect_error", (err) => {
-                    console.log("Error aaya", err)
-                })
             } catch (err) {
                 console.error(err)
                 navigate("/dashboard")
@@ -117,13 +131,17 @@ export default function WhiteboardRoom() {
 
         return () => {
             mounted = false
-            if (socketInstance) {
-                socketInstance.off("user-connected")
-                socketInstance.off("user-disconnect-notif")
+
+            if (socketRef.current) {
+                // ✅ Remove exactly these named handlers, not all listeners
+                socketRef.current.off("user-connected", handleUserConnected)
+                socketRef.current.off("user-disconnect-notif", handleUserDisconnected)
+                socketRef.current.off("connect_error", handleConnectError)
                 disconnectSocket({ boardId, userId: user.id })
+                socketRef.current = null
             }
         }
-    }, [boardId, session, user, navigate])
+    }, [boardId, user?.id, navigate])
 
     const addCollaborators = async (e) => {
         e.preventDefault()
