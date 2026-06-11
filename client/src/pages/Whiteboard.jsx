@@ -38,105 +38,145 @@ export default function WhiteboardRoom() {
     // State to manage the share popup modal visibility
     const [isShareOpen, setIsShareOpen] = useState(false);
 
-    // Fetch user role from db
+
+    // Use effect handling socket connection
+    // useEffect(() => {
+    //     const socket = connectSocket(session, boardId);
+
+    //     const joinRoom = () => {
+    //         socket.emit("join-room", { boardId, userId: user.id, userEmail: user.email });
+
+    //         console.log("hey bitch", user.email);
+    //     };
+
+    //     // if already connected emit immediately, else wait for connection
+    //     if (socket.connected) {
+    //         joinRoom();
+    //     } else {
+    //         socket.once("connect", joinRoom);
+    //     }
+
+    //     socket.on("user-connected", ({ userId, userEmail }) => {
+    //         ;
+    //         toastRef.current?.show({
+    //             severity: 'info',
+    //             summary: 'Collaborator Connected',
+    //             detail: `${getName(userEmail)} has joined the whiteboard session.`,
+    //             life: 3000
+    //         });
+    //     });
+
+    //     // Display toast notification for user disconnected
+    //     socket.on("user-disconnect-notif", (userEmail) => {
+    //         console.log("User disconnected", userEmail)
+    //         toastRef.current?.show({
+    //             severity: "error",
+    //             summary: "Collaborater Left",
+    //             detail: `${getName(userEmail)} has left the whiteboard session`,
+    //             life: 3000
+    //         })
+    //     })
+
+    //     // Connect error events
+    //     socket.on("connect_error", (err) => {
+    //         console.log("Error aaya", err)
+    //     })
+
+    //     return () => {
+    //         socket.off("user-connected");
+    //         socket.off("user-disconnect-notif")
+
+    //         // Display toast notification for user disconnected
+
+    //         disconnectSocket({ boardId, userId: user.id });
+    //     };
+    // }, [boardId]);
+
     useEffect(() => {
-        const getUserRole = async () => {
+        if (!session || !user) return
+
+        let socketInstance = null
+        let mounted = true
+
+        const getBoardData = async () => {
             try {
-                const { data, error } = await supabase
-                    .from("collaborators")
-                    .select("role")
-                    .eq('whiteboard_id', boardId)
-                    .eq('user_id', user.id)
-                    .single()
+                const res = await fetch(`http://localhost:3000/api/board/access/${boardId}`, {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer: ${session.access_token}`
+                    }
+                })
 
-                if (error) throw new Error(error)
+                const data = await res.json()
+                console.log(data)
 
-                setUserRole(data.role)
-                console.log(data.role)
-            }
-            catch (err) {
-                console.error(err)
-            }
-        }
-
-        getUserRole()
-    }, [])
-
-    //   Fetch initial board snapshot from Supabase
-    useEffect(() => {
-        async function fetchBoardData() {
-            try {
-                const { data, error } = await supabase
-                    .from('whiteboards')
-                    .select('title, canvas_data')
-                    .eq('id', boardId)
-                    .single();
-
-                if (error) throw error;
-
-                if (data) {
-                    setBoardTitle(data.title);
-                    // If canvas_data is empty or {} then pass null for a fresh start
-                    const hasData = data.canvas_data && Object.keys(data.canvas_data).length > 0;
-                    setInitialSnapshot(hasData ? data.canvas_data : null);
+                if (!res.ok) {
+                    console.log("you are unauthorized bitch")
+                    navigate("/dashboard")
+                    return
                 }
+
+                const { boardData, userRole } = data
+                setUserRole(userRole)
+
+                if (boardData) {
+                    setBoardTitle(boardData.title)
+                    const hasData = boardData.canvas_data && Object.keys(boardData.canvas_data).length > 0
+                    setInitialSnapshot(hasData ? boardData.canvas_data : null)
+                }
+
+                socketInstance = connectSocket(session, boardId)
+
+                const joinRoom = () => {
+                    socketInstance.emit("join-room", { boardId, userId: user.id, userEmail: user.email })
+                }
+
+                if (socketInstance.connected) {
+                    joinRoom()
+                } else {
+                    socketInstance.once("connect", joinRoom)
+                }
+
+                socketInstance.on("user-connected", ({ userId, userEmail }) => {
+                    toastRef.current?.show({
+                        severity: 'info',
+                        summary: 'Collaborator Connected',
+                        detail: `${getName(userEmail)} has joined the whiteboard session.`,
+                        life: 3000
+                    })
+                })
+
+                socketInstance.on("user-disconnect-notif", (userEmail) => {
+                    toastRef.current?.show({
+                        severity: "error",
+                        summary: "Collaborater Left",
+                        detail: `${getName(userEmail)} has left the whiteboard session`,
+                        life: 3000
+                    })
+                })
+
+                socketInstance.on("connect_error", (err) => {
+                    console.log("Error aaya", err)
+                })
             } catch (err) {
-                console.error('Error fetching board:', err.message);
-                // On access being denied by RLS policies, navigate back to the dashboard
-                navigate('/dashboard');
+                console.error(err)
+                navigate("/dashboard")
             } finally {
-                setLoading(false);
+                if (mounted) setLoading(false)
             }
         }
 
-        if (boardId) fetchBoardData();
-    }, [boardId, navigate]);
-
-    useEffect(() => {
-        const socket = connectSocket(session, boardId);
-
-        const joinRoom = () => {
-            socket.emit("join-room", { boardId, userId: user.id, userEmail: user.email });
-
-            console.log("hey bitch", user.email);
-        };
-
-        // if already connected emit immediately, else wait for connection
-        if (socket.connected) {
-            joinRoom();
-        } else {
-            socket.once("connect", joinRoom);
-        }
-
-        socket.on("user-connected", ({ userId, userEmail }) => {
-            ;
-            toastRef.current?.show({
-                severity: 'info',
-                summary: 'Collaborator Connected',
-                detail: `${getName(userEmail)} has joined the whiteboard session.`,
-                life: 3000
-            });
-        });
-
-        // Display toast notification for user disconnected
-        socket.on("user-disconnect-notif", (userEmail) => {
-            console.log("User disconnected", userEmail)
-            toastRef.current?.show({
-                severity: "error",
-                summary: "Collaborater Left",
-                detail: `${getName(userEmail)} has left the whiteboard session`,
-                life: 3000
-            })
-        })
+        getBoardData()
 
         return () => {
-            socket.off("user-connected");
-
-            // Display toast notification for user disconnected
-
-            disconnectSocket({ boardId, userId: user.id });
-        };
-    }, [boardId]);
+            mounted = false
+            if (socketInstance) {
+                socketInstance.off("user-connected")
+                socketInstance.off("user-disconnect-notif")
+                disconnectSocket({ boardId, userId: user.id })
+            }
+        }
+    }, [boardId, session, user, navigate])
 
     const addCollaborators = async (e) => {
         e.preventDefault()
@@ -179,8 +219,6 @@ export default function WhiteboardRoom() {
         );
     }
 
-    console.log("FINALE", updateCards)
-
     return (
         <div className="w-screen h-screen flex flex-col bg-[#f5f2eb] select-none relative">
             <Toast ref={toastRef} />
@@ -188,7 +226,7 @@ export default function WhiteboardRoom() {
             {/* Render Update Cards */}
             {updateCards?.map((card) => {
                 return (
-                    <BoardUpdateCard x={card.x} y={card.y} userName={card.userName} userColor={card.userColor}/>
+                    <BoardUpdateCard x={card.x} y={card.y} userName={card.userName} userColor={card.userColor} />
                 )
             })}
 
