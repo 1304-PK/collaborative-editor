@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { connectSocket, disconnectSocket } from "../lib/socket";
 import saveBoard from "../utils/saveBoard";
 import { supabase } from "../lib/supabaseClient";
 import getName from "../utils/getName";
@@ -8,11 +7,11 @@ import { useAuth } from "../context/AuthContext";
 
 const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, setUpdateCards) => {
 
-    const {user} = useAuth()
+    const { user } = useAuth()
 
-    editor?.updateInstanceState({
-        isReadonly: userRole==='viewer'
-    })
+    // editor?.updateInstanceState({
+    //     isReadonly: userRole==='viewer'
+    // })
 
     useEffect(() => {
 
@@ -24,9 +23,11 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
                 .eq("id", boardId)
                 .single()
 
-            if (Object.keys(data.canvas_data).length===0) return
+            if (Object.keys(data.canvas_data).length === 0) return
 
-            const snapshot = JSON.parse(data.canvas_data)
+            const snapshot = typeof data.canvas_data === 'string'
+                ? JSON.parse(data.canvas_data)
+                : data.canvas_data;
             editor.loadSnapshot(snapshot)
         }
 
@@ -37,8 +38,9 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
 
         // detect changes and emit the whiteboard-update event
         if (!editor) return
+        if (!socketRef?.current) return
 
-        const socket = connectSocket()
+        const socket = socketRef.current
 
         console.log("hook connected to editor....")
 
@@ -72,10 +74,10 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
         }, { scope: "document" })
 
         //sync whiteboard across the room
-        const handleRemoteUpdate = ({changes, userColor, userEmail}) => {
+        const handleRemoteUpdate = ({ changes, userColor, userEmail }) => {
 
-            const {added} = changes
-            if (added.length>0){
+            const { added } = changes
+            if (added.length > 0) {
                 const cardId = crypto.randomUUID()
 
                 // get viewport coordinates from actual coordinates
@@ -93,7 +95,7 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
                 }])
 
                 setTimeout(() => {
-                    setUpdateCards(prev => prev.filter(card => card.id!==cardId))
+                    setUpdateCards(prev => prev.filter(card => card.id !== cardId))
                 }, 2000)
             }
 
