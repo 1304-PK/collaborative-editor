@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { LogOut, MoreVertical, Pencil, Trash2, Users } from 'lucide-react';
 import treeBackground from '../assets/tree_background.jpg';
 import { getOwnedBoards } from '../utils/getBoards';
 
@@ -24,10 +24,14 @@ export default function Dashboard() {
     const [openMenuId, setOpenMenuId] = useState(null);
     const [isRenameOpen, setIsRenameOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [isCollaboratorsOpen, setIsCollaboratorsOpen] = useState(false);
     const [selectedBoard, setSelectedBoard] = useState(null);
     const [renameValue, setRenameValue] = useState('');
+    const [collaborators, setCollaborators] = useState([]);
+    const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(false);
     const renameDialogRef = useRef(null);
     const deleteDialogRef = useRef(null);
+    const collaboratorsDialogRef = useRef(null);
 
     // Open rename dialog
     const openRename = (board) => {
@@ -44,6 +48,13 @@ export default function Dashboard() {
         setIsDeleteOpen(true);
     };
 
+    // Open collaborators dialog
+    const openCollaborators = (board) => {
+        setSelectedBoard(board);
+        setOpenMenuId(null);
+        setIsCollaboratorsOpen(true);
+    };
+
     // Sync <dialog> open/close with state
     useEffect(() => {
         if (isRenameOpen) renameDialogRef.current?.showModal();
@@ -54,6 +65,18 @@ export default function Dashboard() {
         if (isDeleteOpen) deleteDialogRef.current?.showModal();
         else deleteDialogRef.current?.close();
     }, [isDeleteOpen]);
+
+    useEffect(() => {
+        if (isCollaboratorsOpen) {
+            collaboratorsDialogRef.current?.showModal();
+            if (selectedBoard?.id) {
+                fetchCollaborators(selectedBoard.id);
+            }
+        }
+        else {
+            collaboratorsDialogRef.current?.close();
+        }
+    }, [isCollaboratorsOpen, selectedBoard?.id]);
 
     // Function to create whiteboard
     const handleCreateBoard = async (e) => {
@@ -97,7 +120,7 @@ export default function Dashboard() {
                 .delete()
                 .eq("id", selectedBoard.id)
 
-            if (error) throw new Error(error.message) 
+            if (error) throw new Error(error.message)
 
             const updatedData = await getOwnedBoards(user.id)
             setBoards(updatedData)
@@ -111,27 +134,94 @@ export default function Dashboard() {
     }
 
     // Function to rename whiteboard
-    const renameBoard = async(e) => {
+    const renameBoard = async (e) => {
         e.preventDefault()
 
-        try{
-            const {data, error} = await supabase
-            .from("whiteboards")
-            .update({"title": renameValue})
-            .eq("id", selectedBoard.id)
+        try {
+            const { data, error } = await supabase
+                .from("whiteboards")
+                .update({ "title": renameValue })
+                .eq("id", selectedBoard.id)
 
             if (error) throw new Error(error.message)
 
             const updatedData = await getOwnedBoards(user.id)
             setBoards(updatedData)
         }
-        catch(err){
+        catch (err) {
             console.error(err)
         }
-        finally{
+        finally {
             setIsRenameOpen(false)
         }
     }
+
+    // Fetch collaborators for the selected board
+    const fetchCollaborators = async (boardId) => {
+        setIsLoadingCollaborators(true);
+        try {
+            // Step 1: Fetch collaborators from the collaborators table
+            const { data: collabData, error: collabError } = await supabase
+                .from("collaborators")
+                .select("role, user_id")
+                .eq("whiteboard_id", boardId)
+                .in("role", ["viewer", "editor"]);
+
+            if (collabError) throw new Error(collabError.message);
+
+            if (!collabData || collabData.length === 0) {
+                setCollaborators([]);
+                return;
+            }
+
+            // Step 2: Fetch corresponding profiles to get their email addresses
+            const userIds = collabData.map(c => c.user_id);
+            const { data: profilesData, error: profilesError } = await supabase
+                .from("profiles")
+                .select("id, email")
+                .in("id", userIds);
+
+            if (profilesError) throw new Error(profilesError.message);
+
+            // Map user profiles by id for fast lookup
+            const profilesMap = {};
+            profilesData?.forEach(profile => {
+                profilesMap[profile.id] = profile;
+            });
+
+            // Combine the collaborator role/user_id with profile email
+            const combined = collabData.map(collab => ({
+                role: collab.role,
+                user_id: collab.user_id,
+                profiles: profilesMap[collab.user_id] || null
+            }));
+
+            setCollaborators(combined);
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            setIsLoadingCollaborators(false);
+        }
+    };
+
+    // Delete collaborator
+    const deleteCollaborator = async (collaboratorUserId) => {
+        try {
+            const { error } = await supabase
+                .from("collaborators")
+                .delete()
+                .eq("whiteboard_id", selectedBoard.id)
+                .eq("user_id", collaboratorUserId);
+
+            if (error) throw new Error(error.message);
+            setCollaborators((prev) => prev.filter(c => c.user_id !== collaboratorUserId));
+        }
+        catch (err) {
+            console.error(err);
+        }
+    };
 
     // Navigate to whiteboard
     const openWhiteboard = (id) => {
@@ -332,6 +422,14 @@ export default function Dashboard() {
                                                             </button>
                                                             <div className="h-px bg-white/10" />
                                                             <button
+                                                                onClick={() => openCollaborators(board)}
+                                                                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-white hover:bg-white/10 transition-colors"
+                                                            >
+                                                                <Users className="w-3.5 h-3.5 text-white/60" />
+                                                                Edit collaborators
+                                                            </button>
+                                                            <div className="h-px bg-white/10" />
+                                                            <button
                                                                 onClick={() => openDelete(board)}
                                                                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                                                             >
@@ -383,8 +481,8 @@ export default function Dashboard() {
                                                 </div>
                                                 {/* Role badge marker */}
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase border ${board.role === 'editor'
-                                                        ? 'bg-blue-950/40 text-blue-300 border-blue-800/60'
-                                                        : 'bg-white/10 text-white border-white/20'
+                                                    ? 'bg-blue-950/40 text-blue-300 border-blue-800/60'
+                                                    : 'bg-white/10 text-white border-white/20'
                                                     }`}>
                                                     {board.role}
                                                 </span>
@@ -563,6 +661,80 @@ export default function Dashboard() {
                             </button>
                         </div>
                     </form>
+                </div>
+            </dialog>
+
+            {/* ── EDIT COLLABORATORS DIALOG ───────────────── */}
+            <dialog
+                ref={collaboratorsDialogRef}
+                onClose={() => setIsCollaboratorsOpen(false)}
+                className="fixed inset-0 m-auto w-full max-w-md rounded-xl border border-[#e4dec3] bg-[#f5f2eb] p-6 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+            >
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-medium text-neutral-900">Edit collaborators</h3>
+                            <p className="text-xs text-neutral-500">
+                                Manage access for <span className="font-semibold text-neutral-700">{selectedBoard?.title}</span>.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setIsCollaboratorsOpen(false)}
+                            className="text-neutral-400 hover:text-neutral-600 transition-colors p-1"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {isLoadingCollaborators ? (
+                        <div className="py-8 text-center text-xs text-neutral-500 animate-pulse">
+                            Loading collaborators...
+                        </div>
+                    ) : collaborators.length === 0 ? (
+                        <div className="py-8 text-center text-xs text-neutral-500 border border-dashed border-[#d1ccc0] rounded-lg bg-white/30">
+                            No collaborators found.
+                        </div>
+                    ) : (
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            {collaborators.map((collab) => (
+                                <div
+                                    key={collab.user_id}
+                                    className="flex items-center justify-between p-3 bg-white/50 border border-[#e4dec3]/60 rounded-lg"
+                                >
+                                    <div className="space-y-0.5 min-w-0">
+                                        <p className="text-sm font-medium text-neutral-900 truncate pr-2">
+                                            {collab.profiles?.email || "Unknown user"}
+                                        </p>
+                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase border ${collab.role === 'editor'
+                                                ? 'bg-blue-950/10 text-blue-800 border-blue-200'
+                                                : 'bg-neutral-200/50 text-neutral-700 border-neutral-300'
+                                            }`}>
+                                            {collab.role}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => deleteCollaborator(collab.user_id)}
+                                        className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                        title="Remove collaborator"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="flex justify-end pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsCollaboratorsOpen(false)}
+                            className="px-4 py-2 border border-[#d1ccc0] text-neutral-600 text-sm font-medium rounded-lg hover:bg-neutral-100 transition-colors duration-200 cursor-pointer"
+                        >
+                            Close
+                        </button>
+                    </div>
                 </div>
             </dialog>
 
