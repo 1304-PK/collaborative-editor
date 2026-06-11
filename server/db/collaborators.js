@@ -6,8 +6,7 @@ const getUserRole = async (boardId, userId) => {
         .select("role")
         .eq("whiteboard_id", boardId)
         .eq("user_id", userId)
-
-    if (error) throw new Error("Don't have access to the board");
+        .single()
 
     return data?.role ?? null;
 }
