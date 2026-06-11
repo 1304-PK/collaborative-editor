@@ -10,6 +10,9 @@ const getUserData = require("./utils/getUserData")
 
 const { getUserRole } = require("./db/collaborators")
 
+// Import routes
+const boardRoute = require("./routes/boardRoutes")
+
 // Initialize express
 const app = express()
 
@@ -28,27 +31,44 @@ const roomData = {
 
 }
 
+// Cors config
+const corsConfig = {
+    origin: [
+        "http://localhost:5173",
+        "http://localhost:5174"
+    ],
+    credentials: true
+}
+
+app.use(cors(corsConfig))
+
+// ----- REST API ENDPOINTS -----
+
+app.use("/api/board", boardRoute)
+
+
+
 // SOCKET.IO middlewares
-io.use(async (socket, next) => {
-    try {
-        const token = socket.handshake.auth.token
-        const boardId = socket.handshake.auth.boardId
+// io.use(async (socket, next) => {
+//     try {
+//         const token = socket.handshake.auth.token
+//         const boardId = socket.handshake.auth.boardId
 
-        const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+//         const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
 
-        if (error || !user) throw new Error("User doesn't exist")
+//         if (error || !user) throw new Error("User doesn't exist")
 
-        socket.user = user
-        const role = getUserRole(boardId, socket.user.id)
+//         socket.user = user
+//         const role = getUserRole(boardId, socket.user.id)
 
-        socket.user.role = role
+//         socket.user.role = role
 
-        next()
-    }
-    catch(err){
-        return next(new Error(err))
-    }
-})
+//         next()
+//     }
+//     catch(err){
+//         return next(new Error(err))
+//     }
+// })
 
 
 // SOCKET.IO connection events
