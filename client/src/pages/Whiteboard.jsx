@@ -38,60 +38,7 @@ export default function WhiteboardRoom() {
     // State to manage the share popup modal visibility
     const [isShareOpen, setIsShareOpen] = useState(false);
 
-
-    // Use effect handling socket connection
-    // useEffect(() => {
-    //     const socket = connectSocket(session, boardId);
-
-    //     const joinRoom = () => {
-    //         socket.emit("join-room", { boardId, userId: user.id, userEmail: user.email });
-
-    //         console.log("hey bitch", user.email);
-    //     };
-
-    //     // if already connected emit immediately, else wait for connection
-    //     if (socket.connected) {
-    //         joinRoom();
-    //     } else {
-    //         socket.once("connect", joinRoom);
-    //     }
-
-    //     socket.on("user-connected", ({ userId, userEmail }) => {
-    //         ;
-    //         toastRef.current?.show({
-    //             severity: 'info',
-    //             summary: 'Collaborator Connected',
-    //             detail: `${getName(userEmail)} has joined the whiteboard session.`,
-    //             life: 3000
-    //         });
-    //     });
-
-    //     // Display toast notification for user disconnected
-    //     socket.on("user-disconnect-notif", (userEmail) => {
-    //         console.log("User disconnected", userEmail)
-    //         toastRef.current?.show({
-    //             severity: "error",
-    //             summary: "Collaborater Left",
-    //             detail: `${getName(userEmail)} has left the whiteboard session`,
-    //             life: 3000
-    //         })
-    //     })
-
-    //     // Connect error events
-    //     socket.on("connect_error", (err) => {
-    //         console.log("Error aaya", err)
-    //     })
-
-    //     return () => {
-    //         socket.off("user-connected");
-    //         socket.off("user-disconnect-notif")
-
-    //         // Display toast notification for user disconnected
-
-    //         disconnectSocket({ boardId, userId: user.id });
-    //     };
-    // }, [boardId]);
-
+    // Get board data and establish socket connection
     useEffect(() => {
         if (!session || !user) return
 
