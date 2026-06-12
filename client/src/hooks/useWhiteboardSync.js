@@ -9,13 +9,16 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
 
     const { user } = useAuth()
 
-    // editor?.updateInstanceState({
-    //     isReadonly: userRole==='viewer'
-    // })
+
 
     useEffect(() => {
 
         if (!editor) return
+
+        editor?.updateInstanceState({
+            isReadonly: userRole === 'viewer'
+        })
+
         const loadBoardData = async () => {
             const { data, error } = await supabase
                 .from("whiteboards")
@@ -68,7 +71,11 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
 
             // Only emit if changes are local (not from remote merges)
             if (hasChanges && update.source === 'user') {
-                socket.emit("whiteboard-update", { changes, boardId, userId: user.id })
+                socket.emit("whiteboard-update", { changes, boardId, userId: user.id }, (response) => {
+                    if (!response.ok) {
+                        console.log(response.error)
+                    }
+                })
             }
 
         }, { scope: "document" })
@@ -114,11 +121,11 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
             })
         }
 
-        socket.on("whiteboard-update", handleRemoteUpdate)
+        socket.on("whiteboard-sync", handleRemoteUpdate)
 
         return () => {
             cleanup()
-            socket.off("whiteboard-update", handleRemoteUpdate)
+            socket.off("whiteboard-sync", handleRemoteUpdate)
         }
     }, [editor, socketRef, boardId])
 }
