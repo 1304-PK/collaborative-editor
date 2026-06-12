@@ -49,26 +49,28 @@ app.use("/api/board", boardRoute)
 
 
 // SOCKET.IO middlewares
-// io.use(async (socket, next) => {
-//     try {
-//         const token = socket.handshake.auth.token
-//         const boardId = socket.handshake.auth.boardId
+io.use(async (socket, next) => {
+    try {
+        const token = socket.handshake.auth.token
+        const boardId = socket.handshake.auth.boardId
 
-//         const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+        const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
 
-//         if (error || !user) throw new Error("User doesn't exist")
+        if (error || !user) throw new Error("User doesn't exist")
 
-//         socket.user = user
-//         const role = getUserRole(boardId, socket.user.id)
+        socket.user = user
+        const role = await getUserRole(boardId, socket.user.id)
 
-//         socket.user.role = role
+        if (!role) return next(new Error("Not a collaborator for the board"))
 
-//         next()
-//     }
-//     catch(err){
-//         return next(new Error(err))
-//     }
-// })
+        socket.user.role = role
+
+        next()
+    }
+    catch(err){
+        return next(new Error(err))
+    }
+})
 
 
 // SOCKET.IO connection events
@@ -107,10 +109,17 @@ io.on("connection", (socket) => {
         socket.to(boardId).emit("user-disconnect-notif", (userEmail))
     })
 
-    socket.on("whiteboard-update", ({ changes, boardId, userId }) => {
+    socket.on("whiteboard-update", ({ changes, boardId, userId }, callback) => {
+        console.log("hey bitch", socket.user.role)
+        if (!(['editor', 'owner'].includes(socket.user.role))){
+            return callback({
+                ok: false,
+                error: "Viewer can't edit board"
+            })
+        }
+
         const { userColor, userEmail } = getUserData(roomData, boardId, userId)
-        socket.to(boardId).emit("whiteboard-update", { changes, userColor, userEmail })
-        console.log(roomData)
+        socket.to(boardId).emit("whiteboard-sync", { changes, userColor, userEmail })
     })
 
     // Logic to remove user from Room Data on disconnecting
