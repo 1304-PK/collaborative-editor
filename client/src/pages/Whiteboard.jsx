@@ -41,6 +41,41 @@ export default function WhiteboardRoom() {
     // State to manage the share popup modal visibility
     const [isShareOpen, setIsShareOpen] = useState(false);
 
+    const showErrorToast = (summary, detail) => {
+        toastRef.current?.show({
+            severity: 'error',
+            summary,
+            detail,
+            life: 4000,
+        })
+    }
+
+    const getBoardAccessErrorMessage = (data, status) => {
+        const message = typeof data?.message === 'string' ? data.message : null
+
+        if (message === 'User unauthorized') {
+            return 'You do not have permission to view this whiteboard.'
+        }
+        if (message === 'Missing Authentication Token') {
+            return 'Your session has expired. Please sign in again.'
+        }
+        if (message === "User doesn't exist") {
+            return 'Your account could not be verified. Please sign in again.'
+        }
+
+        return message || `Unable to load this whiteboard (error ${status}).`
+    }
+
+    const getCollaboratorErrorMessage = (err) => {
+        if (err?.message === "User doesn't exist") {
+            return 'No account was found with that email address.'
+        }
+        if (err?.code === '23505') {
+            return 'This person is already a collaborator on this board.'
+        }
+        return err?.message || 'Could not add collaborator. Please try again.'
+    }
+
     // Get board data and establish socket connection
     useEffect(() => {
         if (!user || !session) return
@@ -68,7 +103,10 @@ export default function WhiteboardRoom() {
         }
 
         const handleConnectError = (err) => {
-            console.log("Error aaya", err)
+            showErrorToast(
+                'Connection failed',
+                err?.message || 'Could not connect to the collaboration server. Please refresh the page.'
+            )
         }
 
         const getBoardData = async () => {
@@ -81,9 +119,12 @@ export default function WhiteboardRoom() {
                 })
 
                 const data = await res.json()
-                console.log(data)
 
                 if (!res.ok) {
+                    showErrorToast(
+                        'Unable to open board',
+                        getBoardAccessErrorMessage(data, res.status)
+                    )
                     navigate("/dashboard")
                     return
                 }
@@ -120,7 +161,10 @@ export default function WhiteboardRoom() {
                 socket.on("connect_error", handleConnectError)
 
             } catch (err) {
-                console.error(err)
+                showErrorToast(
+                    'Unable to open board',
+                    err?.message || 'Something went wrong while loading the whiteboard.'
+                )
                 navigate("/dashboard")
             } finally {
                 if (mounted) setLoading(false)
@@ -169,7 +213,10 @@ export default function WhiteboardRoom() {
             if (cError) throw cError
         }
         catch (err) {
-            console.error(err)
+            showErrorToast(
+                'Could not share board',
+                getCollaboratorErrorMessage(err)
+            )
         }
         finally {
             setIsShareOpen(false)
@@ -178,9 +225,12 @@ export default function WhiteboardRoom() {
 
     if (loading) {
         return (
-            <div className="min-h-screen w-full bg-[#f5f2eb] flex items-center justify-center font-sans text-neutral-600">
-                <p className="text-sm font-medium animate-pulse">Assembling canvas grid...</p>
-            </div>
+            <>
+                <Toast ref={toastRef} />
+                <div className="min-h-screen w-full bg-[#f5f2eb] flex items-center justify-center font-sans text-neutral-600">
+                    <p className="text-sm font-medium animate-pulse">Assembling canvas grid...</p>
+                </div>
+            </>
         );
     }
 

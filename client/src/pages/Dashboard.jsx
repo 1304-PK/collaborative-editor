@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Toast } from 'primereact/toast';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -32,6 +33,7 @@ export default function Dashboard() {
     const renameDialogRef = useRef(null);
     const deleteDialogRef = useRef(null);
     const collaboratorsDialogRef = useRef(null);
+    const toastRef = useRef(null);
 
     // Open rename dialog
     const openRename = (board) => {
@@ -94,7 +96,7 @@ export default function Dashboard() {
                 .select()
 
             if (error) {
-                throw new Error(error.message)
+                throw error
             }
 
             // Update list with the new created whiteboard
@@ -103,7 +105,13 @@ export default function Dashboard() {
             }
         }
         catch (err) {
-            console.error(err)
+            
+            toastRef.current?.show({
+                severity: 'error',
+                summary: 'Create failed',
+                detail: "Couldn't create whiteboard",
+                life: 3000
+            })
         }
 
         setBoardName('');
@@ -120,13 +128,19 @@ export default function Dashboard() {
                 .delete()
                 .eq("id", selectedBoard.id)
 
-            if (error) throw new Error(error.message)
+            if (error) throw error
 
             const updatedData = await getOwnedBoards(user.id)
             setBoards(updatedData)
         }
         catch (err) {
-            console.error(err)
+            
+            toastRef.current?.show({
+                severity: 'error',
+                summary: 'Delete failed',
+                detail: "Couldn't delete board",
+                life: 3000
+            })
         }
         finally {
             setIsDeleteOpen(false)
@@ -143,13 +157,19 @@ export default function Dashboard() {
                 .update({ "title": renameValue })
                 .eq("id", selectedBoard.id)
 
-            if (error) throw new Error(error.message)
+            if (error) throw error
 
             const updatedData = await getOwnedBoards(user.id)
             setBoards(updatedData)
         }
         catch (err) {
-            console.error(err)
+            
+            toastRef.current?.show({
+                severity: 'error',
+                summary: 'Rename failed',
+                detail: "Couldn't rename board",
+                life: 3000
+            })
         }
         finally {
             setIsRenameOpen(false)
@@ -167,7 +187,7 @@ export default function Dashboard() {
                 .eq("whiteboard_id", boardId)
                 .in("role", ["viewer", "editor"]);
 
-            if (collabError) throw new Error(collabError.message);
+            if (collabError) throw collabError;
 
             if (!collabData || collabData.length === 0) {
                 setCollaborators([]);
@@ -181,7 +201,7 @@ export default function Dashboard() {
                 .select("id, email")
                 .in("id", userIds);
 
-            if (profilesError) throw new Error(profilesError.message);
+            if (profilesError) throw profilesError;
 
             // Map user profiles by id for fast lookup
             const profilesMap = {};
@@ -199,7 +219,13 @@ export default function Dashboard() {
             setCollaborators(combined);
         }
         catch (err) {
-            console.error(err);
+            ;
+            toastRef.current?.show({
+                severity: 'error',
+                summary: 'Load failed',
+                detail: "Couldn't load collaborators",
+                life: 3000
+            });
         }
         finally {
             setIsLoadingCollaborators(false);
@@ -215,11 +241,17 @@ export default function Dashboard() {
                 .eq("whiteboard_id", selectedBoard.id)
                 .eq("user_id", collaboratorUserId);
 
-            if (error) throw new Error(error.message);
+            if (error) throw error;
             setCollaborators((prev) => prev.filter(c => c.user_id !== collaboratorUserId));
         }
         catch (err) {
-            console.error(err);
+            ;
+            toastRef.current?.show({
+                severity: 'error',
+                summary: 'Remove failed',
+                detail: "Couldn't remove collaborator",
+                life: 3000
+            });
         }
     };
 
@@ -234,7 +266,12 @@ export default function Dashboard() {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
         } catch (err) {
-            console.error('Error logging out:', err.message);
+            toastRef.current?.show({
+                    severity: 'error',
+                    summary: 'LogOut failed',
+                    detail: "Couldn't LogOut",
+                    life: 3000
+                })
         }
     };
 
@@ -261,8 +298,8 @@ export default function Dashboard() {
                         .eq("user_id", user.id)
                 ]);
 
-                if (ownedRes.error) throw new Error(ownedRes.error.message);
-                if (sharedRes.error) throw new Error(sharedRes.error.message);
+                if (ownedRes.error) throw ownedRes.error;
+                if (sharedRes.error) throw sharedRes.error;
 
                 setBoards(ownedRes.data);
 
@@ -279,7 +316,13 @@ export default function Dashboard() {
                 setSharedBoards(formattedShared);
             }
             catch (err) {
-                console.error(err)
+                
+                toastRef.current?.show({
+                    severity: 'error',
+                    summary: 'Load failed',
+                    detail: "Couldn't load dashboard",
+                    life: 3000
+                })
             }
         }
 
@@ -291,6 +334,8 @@ export default function Dashboard() {
             style={{
                 backgroundImage: `url(${treeBackground})`
             }}>
+
+            <Toast ref={toastRef} />
 
             {/* Soft white overlay with backdrop blur */}
             <div className="absolute inset-0 bg-[#ffffff2f] backdrop-blur-md z-0" />

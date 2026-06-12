@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { Toast } from 'primereact/toast';
 import AuthForm from '../components/AuthForm';
 import { supabase } from '../lib/supabaseClient';
 
 export default function SignUp() {
   const [loading, setLoading] = useState(false);
+  const toastRef = useRef(null);
 
   const handleSignUp = async (formData) => {
     setLoading(true);
@@ -11,20 +13,28 @@ export default function SignUp() {
     try {
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
-        password: formData.password
-      })
+        password: formData.password,
+      });
 
       if (error) {
-        throw new Error(error.message)
+        throw error;
       }
-    }
-    catch (err) {
-      console.error(err)
-    }
-    finally{
-      setLoading(false)
+    } catch (err) {
+      toastRef.current?.show({
+        severity: 'error',
+        summary: 'Signup failed',
+        detail: "Couldn't create account",
+        life: 3000,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  return <AuthForm type="signup" onSubmit={handleSignUp} loading={loading} />;
+  return (
+    <>
+      <Toast ref={toastRef} />
+      <AuthForm type="signup" onSubmit={handleSignUp} loading={loading} />
+    </>
+  );
 }
