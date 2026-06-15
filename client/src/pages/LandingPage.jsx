@@ -160,7 +160,7 @@ export default function LandingPage() {
           >
             <Layers size={16} className="text-white" />
           </div>
-          <span className="syne font-700 text-lg tracking-tight text-[#1a1a2e]">Vektrix</span>
+          <span className="syne font-700 text-lg tracking-tight text-[#1a1a2e]">Lumineon</span>
         </div>
 
         <div className="hidden md:flex items-center gap-8">
@@ -252,25 +252,9 @@ export default function LandingPage() {
             >
               {/* Placeholder graphic */}
               <div className="flex flex-col items-center gap-3 select-none">
-                <svg
-                  width="64"
-                  height="64"
-                  viewBox="0 0 64 64"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <rect width="64" height="64" rx="16" fill="rgba(0,0,0,0.08)" />
-                  <rect x="12" y="24" width="40" height="24" rx="4" stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" fill="none" />
-                  <circle cx="32" cy="20" r="6" stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" fill="none" />
-                  <line x1="20" y1="36" x2="44" y2="36" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" />
-                  <line x1="20" y1="40" x2="36" y2="40" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" />
-                </svg>
-                <span
-                  className="mono text-xs uppercase tracking-widest"
-                  style={{ color: "rgba(0,0,0,0.3)" }}
-                >
-                  Image placeholder
-                </span>
+                <img 
+                className="object-contain h-full"
+                src="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/lp-cms/media/system%20design.png" alt="" />
               </div>
             </div>
 
