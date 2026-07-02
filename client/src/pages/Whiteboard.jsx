@@ -84,7 +84,7 @@ export default function WhiteboardRoom() {
 
         // ✅ Named handlers defined in effect scope
         // cleanup can always reference these regardless of async timing
-        const handleUserConnected = ({ userId, userEmail }) => {
+        const handleUserConnected = ({ userEmail }) => {
             toastRef.current?.show({
                 severity: 'info',
                 summary: 'Collaborator Connected',
@@ -146,7 +146,7 @@ export default function WhiteboardRoom() {
                 socketRef.current = socket
 
                 const joinRoom = () => {
-                    socket.emit("join-room", { boardId, userId: user.id, userEmail: user.email })
+                    socket.emit("join-room", { boardId })
                 }
 
                 if (socket.connected) {
@@ -181,7 +181,7 @@ export default function WhiteboardRoom() {
                 socketRef.current.off("user-connected", handleUserConnected)
                 socketRef.current.off("user-disconnect-notif", handleUserDisconnected)
                 socketRef.current.off("connect_error", handleConnectError)
-                disconnectSocket({ boardId, userId: user.id })
+                disconnectSocket({ boardId })
                 socketRef.current = null
             }
         }
