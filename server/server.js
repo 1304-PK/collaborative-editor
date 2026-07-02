@@ -59,12 +59,13 @@ io.use(async (socket, next) => {
         if (error || !user) throw new Error("User doesn't exist")
 
         socket.user = user
+        
         const role = await getUserRole(boardId, socket.user.id)
 
         if (!role) return next(new Error("Not a collaborator for the board"))
 
         socket.user.role = role
-
+        console.log(socket.user)
         next()
     }
     catch(err){
@@ -76,8 +77,9 @@ io.use(async (socket, next) => {
 // SOCKET.IO connection events
 io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`)
+    const user = socket.user
 
-    socket.on("join-room", ({ boardId, userId, userEmail }) => {
+    socket.on("join-room", ({ boardId }) => {
         // space for authorization logic
 
         // Save user email and id in roomData
@@ -85,48 +87,47 @@ io.on("connection", (socket) => {
         if (!roomData[boardId]) {
             roomData[boardId] = [
                 {
-                    userId: userId,
-                    userEmail: userEmail,
+                    userId: user.id,
+                    userEmail: user.email,
                     userColor: userColor
                 }
             ]
         }
         else {
             roomData[boardId].push({
-                userId: userId,
-                userEmail: userEmail,
+                userId: user.id,
+                userEmail: user.email,
                 userColor: userColor
             })
         }
 
         socket.join(boardId)
-        socket.to(boardId).emit("user-connected", { userId, userEmail, userColor })
+        socket.to(boardId).emit("user-connected", { userId: user.id, userEmail: user.email, userColor })
     })
 
     // Event for displaying notification for user leaving
-    socket.on("user-disconnect", ({ boardId, userId }) => {
-        const { userEmail } = getUserData(roomData, boardId, userId)
-        socket.to(boardId).emit("user-disconnect-notif", (userEmail))
+    socket.on("user-disconnect", ({ boardId }) => {
+        socket.to(boardId).emit("user-disconnect-notif", (user.email))
     })
 
-    socket.on("whiteboard-update", ({ changes, boardId, userId }, callback) => {
-        console.log("hey bitch", socket.user.role)
-        if (!(['editor', 'owner'].includes(socket.user.role))){
+    socket.on("whiteboard-update", ({ changes, boardId }, callback) => {
+
+        if (!(['editor', 'owner'].includes(user.role))){
             return callback({
                 ok: false,
                 error: "Viewer can't edit board"
             })
         }
 
-        const { userColor, userEmail } = getUserData(roomData, boardId, userId)
-        socket.to(boardId).emit("whiteboard-sync", { changes, userColor, userEmail })
+        const { userColor } = getUserData(roomData, boardId, user.id)
+        socket.to(boardId).emit("whiteboard-sync", { changes, userColor, userEmail:user.email })
     })
 
     // Logic to remove user from Room Data on disconnecting
-    socket.on("user-disconnect", ({ boardId, userId }) => {
+    socket.on("user-disconnect", ({ boardId }) => {
         if (!roomData[boardId]) return
 
-        roomData[boardId] = roomData[boardId].filter(user => user.userId != userId)
+        roomData[boardId] = roomData[boardId].filter(user => user.userId != user.id)
     })
 
     socket.on("disconnect", () => {
