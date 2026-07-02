@@ -16,10 +16,10 @@ export function connectSocket(session, boardId) {
   return socket;
 }
 
-export function disconnectSocket({boardId, userId}) {
+export function disconnectSocket({boardId}) {
   if (!socket) throw new Error("No socket instance found");
 
-  socket.emit("user-disconnect", {boardId, userId})
+  socket.emit("user-disconnect", {boardId})
 
   socket.disconnect();
   socket = null;
