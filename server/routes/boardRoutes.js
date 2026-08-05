@@ -14,7 +14,7 @@ router.get("/access/:boardId", boardAccess, async (req, res) => {
             .from('whiteboards')
             .select('title, canvas_data')
             .eq('id', boardId)
-            .single();
+            .single()
 
         if (error) throw new Error(error)
 
