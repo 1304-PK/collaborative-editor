@@ -7,6 +7,10 @@ import { LogOut, MoreVertical, Pencil, Trash2, Users } from 'lucide-react';
 import treeBackground from '../assets/tree_background.jpg';
 import { getOwnedBoards } from '../utils/getBoards';
 
+// Importing schemas
+import { WhiteboardSchema } from '../schemas/whiteboard.schema';
+import errorFormatter from "../utils/errorFormatter"
+
 export default function Dashboard() {
 
     const navigate = useNavigate();
@@ -85,6 +89,12 @@ export default function Dashboard() {
         e.preventDefault();
 
         try {
+
+            const result = WhiteboardSchema.safeParse({boardName: boardName})
+            if (!result.success){
+                throw new Error(errorFormatter(result))
+            }
+
             const { data, error } = await supabase
                 .from("whiteboards")
                 .insert([
@@ -108,8 +118,8 @@ export default function Dashboard() {
             
             toastRef.current?.show({
                 severity: 'error',
-                summary: 'Create failed',
-                detail: "Couldn't create whiteboard",
+                summary: "Couldn't create board",
+                detail: err.message,
                 life: 3000
             })
         }
@@ -152,6 +162,12 @@ export default function Dashboard() {
         e.preventDefault()
 
         try {
+
+            const result = WhiteboardSchema.safeParse({boardName: renameValue})
+            if (!result.success){
+                throw new Error(errorFormatter(result))
+            }
+
             const { data, error } = await supabase
                 .from("whiteboards")
                 .update({ "title": renameValue })
@@ -166,8 +182,8 @@ export default function Dashboard() {
             
             toastRef.current?.show({
                 severity: 'error',
-                summary: 'Rename failed',
-                detail: "Couldn't rename board",
+                summary: "Couldn't rename board",
+                detail: err.message,
                 life: 3000
             })
         }
