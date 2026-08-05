@@ -9,8 +9,12 @@ import BoardUpdateCard from '../components/BoardUpdateCard';
 import useWhiteboardSync from "../hooks/useWhiteboardSync";
 import { Toast } from 'primereact/toast';
 
+// Importing schemas
+import { CollabInfoSchema } from '../schemas/whiteboard.schema';
+
 // Importing utils
 import getName from '../utils/getName';
+import errorFormatter from '../utils/errorFormatter';
 
 // Importing css for render
 import '@tldraw/tldraw/tldraw.css';
@@ -190,6 +194,12 @@ export default function WhiteboardRoom() {
     const addCollaborators = async (e) => {
         e.preventDefault()
         try {
+
+            const result = CollabInfoSchema.safeParse(collabInfo)
+            if (!result.success){
+                throw new Error(errorFormatter(result))
+            }
+
             const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/share/add-collaborator`, {
                 method: "POST",
                 headers: {
@@ -204,8 +214,6 @@ export default function WhiteboardRoom() {
             const data = await res.json()
             if (!res.ok) throw new Error(data.message)
 
-            // show a toast notif notifying collaborator added
-            console.log(data)
         }
         catch (err) {
             showErrorToast(
