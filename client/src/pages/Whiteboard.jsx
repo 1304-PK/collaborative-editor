@@ -190,32 +190,27 @@ export default function WhiteboardRoom() {
     const addCollaborators = async (e) => {
         e.preventDefault()
         try {
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("id")
-                .eq("email", collabInfo.email)
-                .maybeSingle()
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/share/add-collaborator`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    email: collabInfo.email,
+                    role: collabInfo.role,
+                    whiteboard_id: boardId
+                })
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.message)
 
-            if (error) throw error
-
-            if (!data) throw new Error("User doesn't exist")
-
-            const { data: cData, error: cError } = await supabase
-                .from("collaborators")
-                .insert([
-                    {
-                        whiteboard_id: boardId,
-                        user_id: data.id,
-                        role: collabInfo.role
-                    }
-                ])
-
-            if (cError) throw cError
+            // show a toast notif notifying collaborator added
+            console.log(data)
         }
         catch (err) {
             showErrorToast(
-                'Could not share board',
-                getCollaboratorErrorMessage(err)
+                'Error',
+                err.message
             )
         }
         finally {
