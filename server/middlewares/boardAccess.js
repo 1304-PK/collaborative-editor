@@ -10,8 +10,8 @@ const boardAccess = async (req, res, next) => {
 
     if (error || !user) return res.status(404).json({"message": "User doesn't exist"})
 
-    const role = await getUserRole(req.params.boardId, user.id)
-    console.log(role)
+    const role = await getUserRole(req.params.boardId || req.body.whiteboard_id, user.id)
+
     if (!['owner', 'editor', 'viewer'].includes(role))
         return res.status(401).json({"message": "User unauthorized"})
 
