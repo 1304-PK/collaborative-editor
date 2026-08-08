@@ -193,17 +193,20 @@ export default function WhiteboardRoom() {
 
     const addCollaborators = async (e) => {
         e.preventDefault()
+        console.log(collabInfo)
         try {
-
+            
             const result = CollabInfoSchema.safeParse(collabInfo)
             if (!result.success){
+                console.log(result)
                 throw new Error(errorFormatter(result))
             }
 
             const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/share/add-collaborator`, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session.access_token}`
                 },
                 body: JSON.stringify({
                     email: collabInfo.email,
@@ -243,6 +246,8 @@ export default function WhiteboardRoom() {
 
             {/* Render Update Cards */}
             {updateCards?.map((card) => {
+                console.log("card", card)
+
                 return (
                     <BoardUpdateCard x={card.x} y={card.y} userName={card.userName} userColor={card.userColor} />
                 )
