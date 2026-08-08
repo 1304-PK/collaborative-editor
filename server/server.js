@@ -4,6 +4,7 @@ const http = require("http")
 const { Server } = require("socket.io")
 require("dotenv").config()
 const supabaseAdmin = require("./config/supabaseClient")
+const redis = require("./config/redisClient")
 
 const genRandomColor = require("./utils/genRandomColor")
 const getUserData = require("./utils/getUserData")
@@ -62,7 +63,7 @@ io.use(async (socket, next) => {
         if (error || !user) throw new Error("User doesn't exist")
 
         socket.user = user
-        
+
         const role = await getUserRole(boardId, socket.user.id)
 
         if (!role) return next(new Error("Not a collaborator for the board"))
@@ -71,7 +72,7 @@ io.use(async (socket, next) => {
         console.log(socket.user)
         next()
     }
-    catch(err){
+    catch (err) {
         return next(new Error(err))
     }
 })
@@ -85,24 +86,34 @@ io.on("connection", (socket) => {
     socket.on("join-room", ({ boardId }) => {
         // space for authorization logic
 
-        // Save user email and id in roomData
+        // Generate random color for the user
         const userColor = genRandomColor()
-        if (!roomData[boardId]) {
-            roomData[boardId] = [
-                {
-                    userId: user.id,
-                    userEmail: user.email,
-                    userColor: userColor
-                }
-            ]
-        }
-        else {
-            roomData[boardId].push({
-                userId: user.id,
+        // if (!roomData[boardId]) {
+        //     roomData[boardId] = [
+        //         {
+        //             userId: user.id,
+        //             userEmail: user.email,
+        //             userColor: userColor
+        //         }
+        //     ]
+        // }
+        // else {
+        //     roomData[boardId].push({
+        //         userId: user.id,
+        //         userEmail: user.email,
+        //         userColor: userColor
+        //     })
+        // }
+        
+        // Storing user data in redis hashmap
+        redis.hset(
+            `room:${boardId}`,
+            user.id,
+            JSON.stringify({
                 userEmail: user.email,
                 userColor: userColor
             })
-        }
+        )
 
         socket.join(boardId)
         socket.to(boardId).emit("user-connected", { userId: user.id, userEmail: user.email, userColor })
@@ -113,24 +124,25 @@ io.on("connection", (socket) => {
         socket.to(boardId).emit("user-disconnect-notif", (user.email))
     })
 
-    socket.on("whiteboard-update", ({ changes, boardId }, callback) => {
+    socket.on("whiteboard-update", async ({ changes, boardId }, callback) => {
 
-        if (!(['editor', 'owner'].includes(user.role))){
+        if (!(['editor', 'owner'].includes(user.role))) {
             return callback({
                 ok: false,
                 error: "Viewer can't edit board"
             })
         }
 
-        const { userColor } = getUserData(roomData, boardId, user.id)
-        socket.to(boardId).emit("whiteboard-sync", { changes, userColor, userEmail:user.email })
+        const userColor = await getUserData(boardId, user.id)
+        socket.to(boardId).emit("whiteboard-sync", { changes, userColor, userEmail: user.email })
     })
 
     // Logic to remove user from Room Data on disconnecting
-    socket.on("user-disconnect", ({ boardId }) => {
-        if (!roomData[boardId]) return
-
-        roomData[boardId] = roomData[boardId].filter(user => user.userId != user.id)
+    socket.on("user-disconnect", async ({ boardId }) => {
+        // if (!roomData[boardId]) return
+        
+        // roomData[boardId] = roomData[boardId].filter(user => user.userId != user.id)
+        await redis.hdel(`room:${boardId}`, user.id)
     })
 
     socket.on("disconnect", () => {
