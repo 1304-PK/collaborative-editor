@@ -1,4 +1,5 @@
 const BoardUpdateCard = ({ x, y, userName, userColor }) => {
+  console.log("usercolor", userColor)
   return (
     <div
       style={{
