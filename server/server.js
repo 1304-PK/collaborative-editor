@@ -32,10 +32,6 @@ const io = new Server(server, {
     }
 })
 
-const roomData = {
-
-}
-
 // Cors config
 const corsConfig = {
     origin: allowedOrigins,
@@ -78,32 +74,16 @@ io.use(async (socket, next) => {
 })
 
 
+
 // SOCKET.IO connection events
 io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`)
     const user = socket.user
 
-    socket.on("join-room", ({ boardId }) => {
-        // space for authorization logic
+    socket.on("join-room", ({boardId}) => {
 
         // Generate random color for the user
         const userColor = genRandomColor()
-        // if (!roomData[boardId]) {
-        //     roomData[boardId] = [
-        //         {
-        //             userId: user.id,
-        //             userEmail: user.email,
-        //             userColor: userColor
-        //         }
-        //     ]
-        // }
-        // else {
-        //     roomData[boardId].push({
-        //         userId: user.id,
-        //         userEmail: user.email,
-        //         userColor: userColor
-        //     })
-        // }
         
         // Storing user data in redis hashmap
         redis.hset(
@@ -139,9 +119,6 @@ io.on("connection", (socket) => {
 
     // Logic to remove user from Room Data on disconnecting
     socket.on("user-disconnect", async ({ boardId }) => {
-        // if (!roomData[boardId]) return
-        
-        // roomData[boardId] = roomData[boardId].filter(user => user.userId != user.id)
         await redis.hdel(`room:${boardId}`, user.id)
     })
 
