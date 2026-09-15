@@ -12,8 +12,13 @@ router.post("/add-collaborator", boardAccess, async (req, res) => {
     }
 
     const { email, role, whiteboard_id } = req.body
-    if (!email || !role) res.status(400).json({ detail: "Required fields missing" })
+    if (!email || !role) return res.status(400).json({ detail: "Required fields missing" })
 
+    const allowedRoles = ['editor', 'viewer']
+    if (!allowedRoles.includes(role)) {
+        return res.status(400).json({ detail: "Invalid role specified" })
+    }
+    
     try {
         const { data, error } = await supabaseAdmin
             .from("profiles")
@@ -22,7 +27,7 @@ router.post("/add-collaborator", boardAccess, async (req, res) => {
             .maybeSingle()
 
         // Vague message to prevent user enumeration
-        if (error) throw new Error("Unable to add collaborator")
+        if (error || !data) throw new Error("Unable to add collaborator")
 
         const { data: cData, error: cError } = await supabaseAdmin
             .from("collaborators")
