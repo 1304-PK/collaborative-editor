@@ -6,11 +6,13 @@ let socket = null;
 export function connectSocket(session, boardId) {
   if (socket?.connected) return socket;
 
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
   // Establish connection and send the current access token for information
-  socket = io("http://localhost:3000", {
+  socket = io(backendUrl, {
     auth: {
       token: session?.access_token,
-      boardId, boardId
+      boardId
     }
   });
   return socket;

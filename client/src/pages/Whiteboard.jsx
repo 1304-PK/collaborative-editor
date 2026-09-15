@@ -115,7 +115,8 @@ export default function WhiteboardRoom() {
 
         const getBoardData = async () => {
             try {
-                const res = await fetch(`http://localhost:3000/api/board/access/${boardId}`, {
+                const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000"
+                const res = await fetch(`${backendUrl}/api/board/access/${boardId}`, {
                     method: "GET",
                     headers: {
                         Authorization: `Bearer ${session.access_token}`
@@ -150,7 +151,7 @@ export default function WhiteboardRoom() {
                 socketRef.current = socket
 
                 const joinRoom = () => {
-                    socket.emit("join-room", { boardId })
+                    socket.emit("join-room", {boardId})
                 }
 
                 if (socket.connected) {
@@ -202,7 +203,8 @@ export default function WhiteboardRoom() {
                 throw new Error(errorFormatter(result))
             }
 
-            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/share/add-collaborator`, {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000"
+            const res = await fetch(`${backendUrl}/api/share/add-collaborator`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -316,7 +318,7 @@ export default function WhiteboardRoom() {
 
             {/* The Interactive Infinite Canvas Engine CONTAINER */}
             <div className="flex-1 w-full relative">
-                <Tldraw
+                <Tldraw licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
                     initialSnapshot={initialSnapshot}
                     onMount={(mountedEditor) => setEditor(mountedEditor)}
                 />
