@@ -47,6 +47,40 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
 
         console.log("hook connected to editor....")
 
+        let timer = null, lastEmit = 0;
+        let buffer = { added: [], updated: {}, removed: [] };
+
+        const sendUpdates = () => {
+            const hasPayload =
+                buffer.added.length > 0 ||
+                Object.keys(buffer.updated).length > 0 ||
+                buffer.removed.length > 0;
+
+            if (hasPayload) {
+                socket.emit(
+                    "whiteboard-update",
+                    {
+                        changes: {
+                            added: buffer.added,
+                            updated: Object.values(buffer.updated),
+                            removed: buffer.removed
+                        },
+                        boardId,
+                        userId: user.id
+                    },
+                    (response) => {
+                        if (!response?.ok) {
+                            console.log(response?.error);
+                        }
+                    }
+                );
+            }
+
+            buffer = { added: [], updated: {}, removed: [] };
+            lastEmit = Date.now();
+            timer = null;
+        };
+
         const cleanup = editor.store.listen((update) => {
             console.log(update)
             // Code to print board 1 second after user is still
@@ -71,60 +105,77 @@ const useWhiteboardSync = (editor, socketRef, boardId, setSaveStatus, userRole, 
 
             // Only emit if changes are local (not from remote merges)
             if (hasChanges && update.source === 'user') {
-                socket.emit("whiteboard-update", { changes, boardId, userId: user.id }, (response) => {
-                    if (!response.ok) {
-                        console.log(response.error)
-                    }
-                })
+                buffer.added.push(...changes.added);
+                changes.updated.forEach(s => buffer.updated[s.id] = s);
+                buffer.removed.push(...changes.removed);
+
+                if (Date.now() - lastEmit >= 200) {
+                    clearTimeout(timer);
+                    sendUpdates();
+                } else if (!timer) {
+                    timer = setTimeout(sendUpdates, 200);
+                }
             }
 
         }, { scope: "document" })
 
         //sync whiteboard across the room
+        let cardTimers = {};
+
         const handleRemoteUpdate = ({ changes, userColor, userEmail }) => {
+            const { added, updated, removed } = changes;
+            const target = added?.[0] || updated?.[0] || editor.getShape(removed?.[0]);
+            const targetCoords = target ? { x: target.x, y: target.y } : null;
 
-            const { added } = changes
-            if (added.length > 0) {
-                const cardId = crypto.randomUUID()
-
-                // get viewport coordinates from actual coordinates
-                const pos = editor.pageToViewport({
-                    x: added[0].x,
-                    y: added[0].y
-                })
-
-                setUpdateCards(prev => [...prev, {
-                    id: cardId,
-                    userName: getName(userEmail),
-                    userColor: userColor,
-                    x: Math.ceil(pos.x),
-                    y: Math.ceil(pos.y)
-                }])
-
-                setTimeout(() => {
-                    setUpdateCards(prev => prev.filter(card => card.id !== cardId))
-                }, 2000)
-            }
-
+            // 1. Merge canvas changes immediately for smooth live movement
             editor.store.mergeRemoteChanges(() => {
-                const { added, updated, removed } = changes;
-
-                if (added.length > 0) {
+                if (added?.length > 0) {
                     editor.store.put(added);
                 }
-                if (updated.length > 0) {
+                if (updated?.length > 0) {
                     editor.store.put(updated);
                 }
-                if (removed.length > 0) {
+                if (removed?.length > 0) {
                     editor.store.remove(removed);
                 }
-            })
-        }
+            });
+
+            // 2. Debounce the notification card: only show at final position when movement stops
+            if (targetCoords) {
+                if (cardTimers[userEmail]) {
+                    clearTimeout(cardTimers[userEmail]);
+                }
+
+                cardTimers[userEmail] = setTimeout(() => {
+                    const cardId = crypto.randomUUID();
+                    const pos = editor.pageToViewport(targetCoords);
+
+                    setUpdateCards(prev => [
+                        ...prev.filter(c => c.userName !== getName(userEmail)),
+                        {
+                            id: cardId,
+                            userName: getName(userEmail),
+                            userColor: userColor,
+                            x: Math.ceil(pos.x),
+                            y: Math.ceil(pos.y)
+                        }
+                    ]);
+
+                    setTimeout(() => {
+                        setUpdateCards(prev => prev.filter(card => card.id !== cardId));
+                    }, 2000);
+
+                    delete cardTimers[userEmail];
+                }, 300);
+            }
+        };
 
         socket.on("whiteboard-sync", handleRemoteUpdate)
 
         return () => {
             cleanup()
+            if (timer) clearTimeout(timer)
+            Object.values(cardTimers).forEach(clearTimeout)
             socket.off("whiteboard-sync", handleRemoteUpdate)
         }
     }, [editor, socketRef, boardId])
