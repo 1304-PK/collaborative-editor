@@ -11,9 +11,10 @@ const getUserData = require("./utils/getUserData")
 
 const { getUserRole } = require("./db/collaborators")
 
-// Import routes
+// Import routes and middlewares
 const boardRoute = require("./routes/boardRoutes")
 const shareRoute = require("./routes/shareRoutes")
+const rateLimiter = require("./middlewares/rateLimiter")
 
 // Initialize express
 const app = express()
@@ -42,7 +43,7 @@ app.use(cors(corsConfig))
 app.use(express.json())
 
 // ----- REST API ENDPOINTS -----
-
+app.use("/api", rateLimiter)
 app.use("/api/board", boardRoute)
 app.use("/api/share", shareRoute)
 
