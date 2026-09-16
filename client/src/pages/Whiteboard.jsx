@@ -19,6 +19,7 @@ import errorFormatter from '../utils/errorFormatter';
 // Importing css for render
 import '@tldraw/tldraw/tldraw.css';
 
+
 export default function WhiteboardRoom() {
 
     // Socket ref
